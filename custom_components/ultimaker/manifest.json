@@ -1,0 +1,9 @@
+{
+  "domain": "ultimaker",
+  "name": "Ultimaker",
+  "documentation": "https://github.com/jellespijker/home-assistant-ultimaker",
+  "issue_tracker": "https://github.com/jellespijker/home-assistant-ultimaker/issues",
+  "dependencies": [],
+  "codeowners": ["@jellespijker"],
+  "requirements": []
+}
