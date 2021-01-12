@@ -101,17 +101,23 @@ class UltimakerStatusData(object):
     async def async_update(self):
         """Download and update data from the Ultimaker Printer"""
         if self._host:
-            self._data = await self.fetch_data(self._url_printer)
-            self._data |= await self.fetch_data(self._url_print_job)
-            self._data |= await self.fetch_data(self._url_system)
+            try:
+                self._data = await self.fetch_data(self._url_printer)
+                self._data |= await self.fetch_data(self._url_print_job)
+                self._data |= await self.fetch_data(self._url_system)
+            except aiohttp.ClientConnectorError:
+                self._data = {'status': 'not connected'}
             self._data['sampleTime'] = datetime.now()
 
     async def fetch_data(self, url):
         try:
             with async_timeout.timeout(5):
                 response = await self._session.get(url)
-        except aiohttp.ClientError:
-            _LOGGER.error(f"Cannot poll Ultimaker printer using url: {url}")
+        except aiohttp.ClientConnectorError as err:
+            _LOGGER.warning(f"Printer {self._host} is offline")
+            raise err
+        except aiohttp.ClientError as err:
+            _LOGGER.error(f"Cannot poll Ultimaker printer using url: {url} error {err}")
         except asyncio.TimeoutError:
             _LOGGER.error(f" Timeout error occurred while polling ultimaker printer using url {url}")
         except Exception as err:
