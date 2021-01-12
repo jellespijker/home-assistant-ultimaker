@@ -12,6 +12,19 @@ Adds support for the following ultimaker printer sensors:
 - Bed temperature
 - Bed target temperature
 
+# Install
+
+## Using HACS:
+
+> Pull Request made to add it to the HACS default repositories
+
+In the mean time you can add a custom repository by the integrations using `https://github.com/jellespijker/home-assistant-ultimaker`
+
+## From source:
+
+Copy the `ultimaker` directory in your own `custom_components` folder
+
+
 # Usage
 
 configuration.yaml
