@@ -41,8 +41,6 @@ sensor:
       - status  # optional
       - state # optional
       - progress # optional
-      - print_job_name # optional
-      - print_job_finished # optional
       - bed_temperature # optional
       - bed_temperature_target # optional
       - hotend_1_temperature # optional
