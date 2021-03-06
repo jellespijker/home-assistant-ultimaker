@@ -8,8 +8,10 @@ Adds support for the following ultimaker printer sensors:
 - Printer status
 - Print job state
 - Print job progress
+- Hotend id (AA 0.4, BB 0.4, ...)
 - Hotend temperature
 - Hotend target temperature
+- Bed type (glass, ...)
 - Bed temperature
 - Bed target temperature
 
@@ -17,9 +19,8 @@ Adds support for the following ultimaker printer sensors:
 
 ## Using HACS:
 
-> Pull Request made to add it to the HACS default repositories
+Just search for **ultimaker** in the HACS integration bar
 
-In the mean time you can add a custom repository by the integrations using `https://github.com/jellespijker/home-assistant-ultimaker`
 
 ## From source:
 
@@ -39,14 +40,17 @@ sensor:
     decimal: 2  # optional, default 2 rounds the sensor values
     sensors:
       - status  # optional
-      - state # optional
-      - progress # optional
-      - bed_temperature # optional
-      - bed_temperature_target # optional
-      - hotend_1_temperature # optional
-      - hotend_1_temperature_target # optional
-      - hotend_2_temperature # optional
-      - hotend_2_temperature_target # optional
+      - state  # optional
+      - progress  # optional
+      - bed_type  # optional
+      - bed_temperature  # optional
+      - bed_temperature_target  # optional
+      - hotend_1_id  # optional
+      - hotend_1_temperature  # optional
+      - hotend_1_temperature_target  # optional
+      - hotend_2_id  # optional
+      - hotend_2_temperature  # optional
+      - hotend_2_temperature_target  # optional
 ```
 
 add a camera to the configuration.yaml
