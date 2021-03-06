@@ -15,7 +15,11 @@ sensor:
       - bed_temperature_target (optional)
       - bed_type (optional)
       - hotend_1_temperature (optional)
-      - hotend_N_temperature (optional, N = hotend index starting at 1)
+      - hotend_1_temperature_target (optional)
+      - hotend_1_temperature_id (optional)
+      - hotend_2_temperature (optional)
+      - hotend_2_temperature_target (optional)
+      - hotend_2_temperature_id (optional)
 """
 import asyncio
 import logging
@@ -57,8 +61,10 @@ SENSOR_TYPES = {
     ],
     "hotend_1_temperature": ["Hotend 1 temperature", TEMP_CELSIUS, "mdi:thermometer"],
     "hotend_1_temperature_target": ["Hotend 1 temperature target", TEMP_CELSIUS, "mdi:thermometer",],
+    "hotend_1_id": ["Hotend 1 id", "", "mdi:printer-3d-nozzle-outline"],
     "hotend_2_temperature": ["Hotend 2 temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "hotend_2_temperature_target": ["Hotend 2 temperature target", TEMP_CELSIUS, "mdi:thermometer",]
+    "hotend_2_temperature_target": ["Hotend 2 temperature target", TEMP_CELSIUS, "mdi:thermometer",],
+    "hotend_2_id": ["Hotend 2 id", "", "mdi:printer-3d-nozzle-outline"],
 }
 
 CONF_DECIMAL = "decimal"
@@ -244,10 +250,13 @@ class UltimakerStatusSensor(Entity):
                     idx = int(self._type.split("_")[1]) - 1
                     extruder = head["extruders"][idx]
                     hot_end = extruder["hotend"]
-                    temperature = hot_end["temperature"]
-                    if "target" in self._type:
-                        self._state = temperature.get("target", None)
-                    else:
-                        self._state = temperature.get("current", None)
+                    if "temperature" in self._type and hot_end:
+                        temperature = hot_end["temperature"]
+                        if "target" in self._type:
+                            self._state = temperature.get("target", None)
+                        else:
+                            self._state = temperature.get("current", None)
+                    if "id" in self._type and hot_end:
+                        self._state = hot_end["id"]
 
             _LOGGER.debug(f"Device: {self._type} State: {self._state}")
