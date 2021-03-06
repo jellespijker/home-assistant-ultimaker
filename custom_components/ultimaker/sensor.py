@@ -13,6 +13,7 @@ sensor:
       - progress (optional)
       - bed_temperature (optional)
       - bed_temperature_target (optional)
+      - bed_type (optional)
       - hotend_1_temperature (optional)
       - hotend_N_temperature (optional, N = hotend index starting at 1)
 """
@@ -52,6 +53,7 @@ SENSOR_TYPES = {
         TEMP_CELSIUS,
         "mdi:thermometer",
     ],
+    "bed_type": ["Bed type", "", "mdi:layers"],
     "hotend_1_temperature": ["Hotend 1 temperature", TEMP_CELSIUS, "mdi:thermometer"],
     "hotend_1_temperature_target": [
         "Hotend 1 temperature target",
@@ -239,6 +241,8 @@ class UltimakerStatusSensor(Entity):
                             self._state = temperature.get("target", None)
                         else:
                             self._state = temperature.get("current", None)
+                if "type" in self._type and bed:
+                    self._state = bed.get("type", None)
 
             elif "hotend" in self._type:
                 head = data.get("heads", [None])[0]
