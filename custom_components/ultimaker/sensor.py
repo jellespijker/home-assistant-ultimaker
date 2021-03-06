@@ -48,24 +48,17 @@ SENSOR_TYPES = {
     "state": ["Print job state", "", "mdi:printer-3d-nozzle"],
     "progress": ["Print job progress", "%", "mdi:progress-clock"],
     "bed_temperature": ["Bed temperature", TEMP_CELSIUS, "mdi:thermometer"],
+    "bed_temperature_target": ["Bed temperature target", TEMP_CELSIUS, "mdi:thermometer",],
+    "bed_type": ["Bed type", "", "mdi:layers"],
     "bed_temperature_target": [
         "Bed temperature target",
         TEMP_CELSIUS,
         "mdi:thermometer",
     ],
-    "bed_type": ["Bed type", "", "mdi:layers"],
     "hotend_1_temperature": ["Hotend 1 temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "hotend_1_temperature_target": [
-        "Hotend 1 temperature target",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
+    "hotend_1_temperature_target": ["Hotend 1 temperature target", TEMP_CELSIUS, "mdi:thermometer",],
     "hotend_2_temperature": ["Hotend 2 temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "hotend_2_temperature_target": [
-        "Hotend 2 temperature target",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
+    "hotend_2_temperature_target": ["Hotend 2 temperature target", TEMP_CELSIUS, "mdi:thermometer",]
 }
 
 CONF_DECIMAL = "decimal"
@@ -243,6 +236,7 @@ class UltimakerStatusSensor(Entity):
                             self._state = temperature.get("current", None)
                 if "type" in self._type and bed:
                     self._state = bed.get("type", None)
+
 
             elif "hotend" in self._type:
                 head = data.get("heads", [None])[0]
