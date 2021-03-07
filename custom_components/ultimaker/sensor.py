@@ -137,9 +137,12 @@ class UltimakerStatusData(object):
         """Download and update data from the Ultimaker Printer"""
         if self._host:
             try:
-                self._data = await self.fetch_data(self._url_printer)
-                self._data |= await self.fetch_data(self._url_print_job)
-                self._data |= await self.fetch_data(self._url_system)
+                printer_data = await self.fetch_data(self._url_printer)
+                print_job_data = await self.fetch_data(self._url_print_job)
+                system_data = await self.fetch_data(self._url_system)
+                self._data = printer_data.copy()
+                self._data.update(print_job_data)
+                self._data.update(system_data)
             except aiohttp.ClientError:
                 self._data = {"status": "not connected"}
             self._data["sampleTime"] = datetime.now()
