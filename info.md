@@ -1,0 +1,97 @@
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+# Home Assistant Ultimaker printers
+
+![sensors](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/home-assistant-um.png)
+
+Adds support for the following ultimaker printer sensors:
+
+- Printer status
+- Print job state
+- Print job progress
+- Hotend id (AA 0.4, BB 0.4, ...)
+- Hotend temperature
+- Hotend target temperature
+- Bed type (glass, ...)
+- Bed temperature
+- Bed target temperature
+
+{% if installed %}
+## Changes as compared to your installed version:
+
+### Features
+
+{% if version_installed.replace("v", "").replace(".","") | int < 14  %}
+- Added `bed_type`
+- Added `hotend_1_id`
+- Added `hotend_2_id`
+{% endif %}
+
+### Bugfixes
+
+{% else %}
+
+## Usage
+
+Add the Ultimaker platform to your sensors in `configuration.yaml`
+
+```yaml
+sensor:
+  - platform: ultimaker
+    name: name
+    host: ip_adress
+    scan_interval: 10  # optional, default 10
+    decimal: 2  # optional, default 2 rounds the sensor values
+    sensors:
+      - status
+      - state
+      - progress
+      - bed_type
+      - bed_temperature
+      - bed_temperature_target
+      - hotend_1_id
+      - hotend_1_temperature
+      - hotend_1_temperature_target
+      - hotend_2_id
+      - hotend_2_temperature
+      - hotend_2_temperature_target
+```
+
+### Camera
+Define a generic camera in the `configuration.yaml`
+
+```yaml
+camera:
+  - platform: generic
+    still_image_url: http://ip_adress:8080/?action=snapshot
+    framerate: 4
+```
+
+### Lovelace card
+
+Add a lovelace card to the UI, replace `printername` with the name you specified in your `configuration.yaml`
+
+```typescript
+type: vertical-stack
+cards:
+  - type: entity
+    entity: sensor.printername_print_job_state
+  - type: conditional
+    conditions:
+      - entity: sensor.printername_printer_status
+        state: printing
+    card:
+      type: picture-entity
+      entity: sensor.printername_print_job_progress
+      camera_image: camera.generic_camera
+      camera_view: live
+  - type: gauge
+    entity: sensor.printername_print_job_progress
+    min: 0
+    max: 100
+    severity:
+      green: 66
+      yellow: 33
+      red: 0
+```
+
+{% endif %}
