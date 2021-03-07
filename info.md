@@ -20,12 +20,12 @@ Adds support for the following ultimaker printer sensors:
 
 ### Features
 
-{% if version_installed.replace("v", "").replace(".","") | int < 14  %}
+{% if version_installed.replace("v", "").replace("V", "").replace(".","") | int < 14  %}
 - Added `bed_type`
 - Added `hotend_1_id`
 - Added `hotend_2_id`
 {% endif %}
-{% if version_installed.replace("v", "").replace(".","") | int < 15  %}
+{% if version_installed.replace("v", "").replace("V", "").replace(".","") | int < 15  %}
 - Support from Python 3.8 and higher
 - Support Home Assistant OS 5.4.99 and higher
 {% endif %}
