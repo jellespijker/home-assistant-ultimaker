@@ -1,6 +1,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 # Home Assistant Ultimaker printers
 
+Personal version with new sensors
+
 ![sensors](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/home-assistant-um.png)
 
 Adds support for the following ultimaker printer sensors:

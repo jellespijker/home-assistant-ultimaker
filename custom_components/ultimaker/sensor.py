@@ -64,6 +64,7 @@ SENSOR_TYPES = {
         TEMP_CELSIUS,
         "mdi:thermometer",
     ],
+    "hotend_1_serial": ["Hotend 1 serial number", "", "mdi:serial"],
     "hotend_1_id": ["Hotend 1 id", "", "mdi:printer-3d-nozzle-outline"],
     "hotend_2_temperature": ["Hotend 2 temperature", TEMP_CELSIUS, "mdi:thermometer"],
     "hotend_2_temperature_target": [
@@ -71,6 +72,8 @@ SENSOR_TYPES = {
         TEMP_CELSIUS,
         "mdi:thermometer",
     ],
+    "hotend_2_statistics_material": ["Hotend 2 statistics material", "", "mdi:statistics"],
+    "hotend_2_serial": ["Hotend 2 serial number", "", "mdi:serial"],
     "hotend_2_id": ["Hotend 2 id", "", "mdi:printer-3d-nozzle-outline"],
 }
 
