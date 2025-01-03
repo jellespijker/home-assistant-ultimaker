@@ -48,18 +48,31 @@ sensor:
     scan_interval: 10  # optional, default 10
     decimal: 2  # optional, default 2 rounds the sensor values
     sensors:
-      - status
-      - state
-      - progress
-      - bed_type
-      - bed_temperature
-      - bed_temperature_target
-      - hotend_1_id
-      - hotend_1_temperature
-      - hotend_1_temperature_target
-      - hotend_2_id
-      - hotend_2_temperature
-      - hotend_2_temperature_target
+      - status  # optional
+      - state  # optional
+      - progress  # optional
+      - time_elapsed # optional
+      - time_estimated # optional
+      - time_total # optional
+      - bed_type  # optional
+      - bed_temperature  # optional
+      - bed_temperature_target  # optional
+      - hotend_1_id  # optional
+      - hotend_1_temperature  # optional
+      - hotend_1_temperature_target  # optional
+      - hotend_1_statistics_material_extruded # optional
+      - hotend_1_statistics_prints_since_cleaned # optional
+      - hotend_1_statistics_max_temperature_exposed # optional
+      - hotend_1_statistics_time_spent_hot # optional
+      - hotend_1_serial # optional
+      - hotend_2_id  # optional
+      - hotend_2_temperature  # optional
+      - hotend_2_temperature_target  # optional
+      - hotend_2_statistics_material_extruded # optional
+      - hotend_2_statistics_prints_since_cleaned # optional
+      - hotend_1_statistics_max_temperature_exposed # optional
+      - hotend_1_statistics_time_spent_hot # optional
+      - hotend_2_serial # optional
 ```
 
 ### Camera

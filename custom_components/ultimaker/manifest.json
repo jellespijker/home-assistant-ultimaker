@@ -1,10 +1,10 @@
 {
   "domain": "ultimaker",
   "name": "Ultimaker",
-  "documentation": "https://github.com/jellespijker/home-assistant-ultimaker",
-  "issue_tracker": "https://github.com/jellespijker/home-assistant-ultimaker/issues",
+  "documentation": "https://github.com/clews/home-assistant-ultimaker",
+  "issue_tracker": "https://github.com/clews/home-assistant-ultimaker/issues",
   "dependencies": [],
-  "codeowners": ["@jellespijker"],
+  "codeowners": ["@jellespijker", "@clews"],
   "requirements": [],
   "version": "0.1.5"
 }

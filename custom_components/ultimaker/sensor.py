@@ -25,6 +25,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
+from pprint import pprint
 
 import aiohttp
 import async_timeout
@@ -36,7 +37,6 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_SCAN_INTERVAL,
     CONF_SENSORS,
-    TEMP_CELSIUS,
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
@@ -51,29 +51,39 @@ SENSOR_TYPES = {
     "status": ["Printer status", "", "mdi:printer-3d"],
     "state": ["Print job state", "", "mdi:printer-3d-nozzle"],
     "progress": ["Print job progress", "%", "mdi:progress-clock"],
-    "bed_temperature": ["Bed temperature", TEMP_CELSIUS, "mdi:thermometer"],
+    "time_elapsed": ["Time elapsed", "", "mdi:progress-upload"],
+    "time_estimated": ["Time estimated", "", "mdi:progress-check"],
+    "time_total": ["Time total", "", "mdi:progress-helper"],
+    "bed_temperature": ["Bed temperature", "°C", "mdi:thermometer"],
     "bed_temperature_target": [
         "Bed temperature target",
-        TEMP_CELSIUS,
+        "°C",
         "mdi:thermometer",
     ],
     "bed_type": ["Bed type", "", "mdi:layers"],
-    "hotend_1_temperature": ["Hotend 1 temperature", TEMP_CELSIUS, "mdi:thermometer"],
+    "hotend_1_temperature": ["Hotend 1 temperature", "°C", "mdi:thermometer"],
     "hotend_1_temperature_target": [
         "Hotend 1 temperature target",
-        TEMP_CELSIUS,
+        "°C",
         "mdi:thermometer",
     ],
-    "hotend_1_serial": ["Hotend 1 serial number", "", "mdi:serial"],
+    "hotend_1_statistics_material_extruded": ["Hotend 1 total material extruded", "", "mdi:gauge"],
+    "hotend_1_statistics_prints_since_cleaned": ["Hotend 1 prints since cleaned", "", "mdi:counter"],
+    "hotend_1_statistics_max_temperature_exposed": ["Hotend 1 max temperature exposed", "", "mdi:thermometer-chevron-up"],
+    "hotend_1_statistics_time_spent_hot": ["Hotend 1 time spent hot", "", "mdi:timer"],
+    "hotend_1_serial": ["Hotend 1 serial number", "", "mdi:barcode"],
     "hotend_1_id": ["Hotend 1 id", "", "mdi:printer-3d-nozzle-outline"],
-    "hotend_2_temperature": ["Hotend 2 temperature", TEMP_CELSIUS, "mdi:thermometer"],
+    "hotend_2_temperature": ["Hotend 2 temperature", "°C", "mdi:thermometer"],
     "hotend_2_temperature_target": [
         "Hotend 2 temperature target",
-        TEMP_CELSIUS,
+        "°C",
         "mdi:thermometer",
     ],
-    "hotend_2_statistics_material": ["Hotend 2 statistics material", "", "mdi:statistics"],
-    "hotend_2_serial": ["Hotend 2 serial number", "", "mdi:serial"],
+    "hotend_2_statistics_material_extruded": ["Hotend 2 total material extruded", "", "mdi:gauge"],
+    "hotend_2_statistics_prints_since_cleaned": ["Hotend 2 prints since cleaned", "", "mdi:counter"],
+    "hotend_2_statistics_max_temperature_exposed": ["Hotend 2 max temperature exposed", "", "mdi:thermometer-chevron-up"],
+    "hotend_2_statistics_time_spent_hot": ["Hotend 2 time spent hot", "", "mdi:timer"],
+    "hotend_2_serial": ["Hotend 2 serial number", "", "mdi:barcode"],
     "hotend_2_id": ["Hotend 2 id", "", "mdi:printer-3d-nozzle-outline"],
 }
 
@@ -148,6 +158,7 @@ class UltimakerStatusData(object):
                 self._data.update(system_data)
             except aiohttp.ClientError:
                 self._data = {"status": "not connected"}
+            pprint(self._data)
             self._data["sampleTime"] = datetime.now()
 
     async def fetch_data(self, url):
@@ -244,6 +255,15 @@ class UltimakerStatusSensor(Entity):
                     self._state *= 100
                 self._state = self._state
 
+            elif self._type == "time_elapsed":
+                self._state = data.get("time_elapsed", None)
+
+            elif self._type == "time_estimated":
+                self._state = data.get("time_estimated", None)
+
+            elif self._type == "time_total":
+                self._state = data.get("time_total", None)
+
             elif "bed" in self._type:
                 bed = data.get("bed", None)
                 if "temperature" in self._type and bed:
@@ -270,5 +290,17 @@ class UltimakerStatusSensor(Entity):
                             self._state = temperature.get("current", None)
                     if "id" in self._type and hot_end:
                         self._state = hot_end["id"]
+                    if "serial" in self._type and hot_end:
+                        self._state = hot_end["serial"]
+                    if "statistics" in self._type and hot_end:
+                        statistics = hot_end["statistics"]
+                        if "material_extruded" in self._type:
+                            self._state = statistics["material_extruded"]
+                        if "prints_since_cleaned" in self._type:
+                            self._state = statistics["prints_since_cleaned"]
+                        if "max_temperature_exposed" in self._type:
+                            self._state = statistics["max_temperature_exposed"]
+                        if "time_spent_hot" in self._type:
+                            self._state = statistics["time_spent_hot"]
 
             _LOGGER.debug(f"Device: {self._type} State: {self._state}")
