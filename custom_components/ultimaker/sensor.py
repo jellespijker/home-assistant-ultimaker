@@ -36,8 +36,9 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_SCAN_INTERVAL,
     CONF_SENSORS,
-    TEMP_CELSIUS,
+    UnitOfTemperature,
 )
+TEMP_CELSIUS = UnitOfTemperature.CELSIUS
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import HomeAssistantType, StateType
