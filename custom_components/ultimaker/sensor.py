@@ -24,20 +24,16 @@ sensor:
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
 from pprint import pprint
+from typing import Any, Dict, Optional
 
 import aiohttp
 import async_timeout
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_NAME,
-    CONF_SCAN_INTERVAL,
-    CONF_SENSORS,
-)
+from homeassistant.const import (CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL,
+                                 CONF_SENSORS)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import HomeAssistantType, StateType
