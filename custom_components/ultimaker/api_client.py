@@ -82,15 +82,43 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                 _LOGGER.error("Error fetching system data: %s", err)
                 system_data = {}
 
-            # Merge all data
-            self._data = printer_data.copy()
-            if print_job_data:
-                self._data.update(print_job_data)
-            if system_data:
-                self._data.update(system_data)
+            # Create a structured data object
+            self._data = {
+                "status": printer_data.get("status", "idle"),
+            }
 
-            # Log the merged data for debugging
-            _LOGGER.debug("Merged data: %s", self._data)
+            # Add printer data
+            if "bed" in printer_data:
+                self._data["bed"] = printer_data["bed"]
+            if "heads" in printer_data:
+                self._data["heads"] = printer_data["heads"]
+
+            # Add print job data
+            if print_job_data:
+                if "state" in print_job_data:
+                    self._data["state"] = print_job_data["state"]
+                if "progress" in print_job_data:
+                    self._data["progress"] = print_job_data["progress"]
+                if "time_elapsed" in print_job_data:
+                    self._data["time_elapsed"] = print_job_data["time_elapsed"]
+                if "time_total" in print_job_data:
+                    self._data["time_total"] = print_job_data["time_total"]
+                if "name" in print_job_data:
+                    self._data["job_name"] = print_job_data["name"]
+
+            # Add system data
+            if system_data:
+                if "name" in system_data:
+                    self._data["system_name"] = system_data["name"]
+                if "hostname" in system_data:
+                    self._data["hostname"] = system_data["hostname"]
+                if "type" in system_data:
+                    self._data["system_type"] = system_data["type"]
+                if "variant" in system_data:
+                    self._data["system_variant"] = system_data["variant"]
+
+            # Log the structured data for debugging
+            _LOGGER.debug("Structured data: %s", self._data)
 
             _LOGGER.debug("Successfully updated data from Ultimaker printer at %s", self._host)
         except aiohttp.ClientError as err:
