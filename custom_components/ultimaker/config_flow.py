@@ -159,10 +159,54 @@ class UltimakerOAuth2FlowHandler(
             },
         )
 
-class UltimakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(UltimakerOAuth2FlowHandler):
     """Handle a config flow for Ultimaker."""
 
     VERSION = 1
+
+    async def async_step_user(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        """Handle a flow initialized by the user."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_API_TYPE, default=API_TYPE_LOCAL): vol.In(
+                            [API_TYPE_LOCAL, API_TYPE_CLOUD]
+                        ),
+                    }
+                ),
+            )
+
+        if user_input[CONF_API_TYPE] == API_TYPE_LOCAL:
+            return await self.async_step_local(user_input)
+        else:
+            # For cloud API, redirect to OAuth flow
+            return await self.async_step_oauth()
+
+    async def async_step_local(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        """Handle local API configuration."""
+        if user_input is None or CONF_HOST not in user_input:
+            return self.async_show_form(
+                step_id="local",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(CONF_HOST): str,
+                    }
+                ),
+            )
+
+        return self.async_create_entry(
+            title=f"Ultimaker Printer ({user_input[CONF_HOST]})",
+            data={
+                CONF_API_TYPE: API_TYPE_LOCAL,
+                CONF_HOST: user_input[CONF_HOST],
+            },
+        )
 
     @staticmethod
     @callback
@@ -170,9 +214,9 @@ class UltimakerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Get the options flow for this handler."""
-        return UltimakerOptionsFlow(config_entry)
+        return OptionsFlow(config_entry)
 
-class UltimakerOptionsFlow(config_entries.OptionsFlow):
+class OptionsFlow(config_entries.OptionsFlow):
     """Handle options for the Ultimaker integration."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:

@@ -2,6 +2,10 @@
 
 This guide will help you set up the Ultimaker integration with Home Assistant, including authentication with Ultimaker's OpenID Connect (OIDC) service.
 
+## Important Note
+
+This integration **only supports configuration through the UI** (Devices & Services) and **does not support** configuration through YAML files (configuration.yaml). Please follow the UI-based setup instructions below.
+
 ## Prerequisites
 
 - Home Assistant instance

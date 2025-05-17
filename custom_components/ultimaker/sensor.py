@@ -14,13 +14,15 @@ from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import StateType
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType, StateType
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
 
 from . import DOMAIN
+import voluptuous as vol
+import homeassistant.helpers.config_validation as cv
 from .const import (
     API_TYPE_CLOUD,
     CONF_API_TYPE,
@@ -158,6 +160,19 @@ CLOUD_SENSOR_DESCRIPTIONS = [
         state_class=SensorStateClass.MEASUREMENT,
     ),
 ]
+
+
+async def setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType = None,
+) -> None:
+    """Set up the sensor platform."""
+    _LOGGER.error(
+        "The Ultimaker integration does not support YAML configuration. "
+        "Please configure it through the UI (Devices & Services)"
+    )
 
 
 async def async_setup_entry(
