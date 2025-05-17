@@ -640,8 +640,16 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
                     if extruders and len(extruders) > 0:
                         extruder = extruders[0]
                         active_material = extruder.get("active_material", {})
-                        value = active_material.get("GUID", "unknown")
-                        _LOGGER.debug("Hotend 1 material type: %s", value)
+
+                        # Check if we have a material name from the API client
+                        if "material_name" in active_material:
+                            value = active_material.get("material_name")
+                            _LOGGER.debug("Using material name from API for hotend 1: %s", value)
+                        else:
+                            # Fallback to using the GUID if no name is available
+                            material_guid = active_material.get("GUID", "unknown")
+                            value = material_guid
+                            _LOGGER.debug("No material name available for hotend 1, using GUID: %s", value)
                     else:
                         _LOGGER.debug("No extruders found for hotend 1 material type")
                         value = "unknown"
@@ -705,8 +713,16 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
                     if extruders and len(extruders) > 1:
                         extruder = extruders[1]
                         active_material = extruder.get("active_material", {})
-                        value = active_material.get("GUID", "unknown")
-                        _LOGGER.debug("Hotend 2 material type: %s", value)
+
+                        # Check if we have a material name from the API client
+                        if "material_name" in active_material:
+                            value = active_material.get("material_name")
+                            _LOGGER.debug("Using material name from API for hotend 2: %s", value)
+                        else:
+                            # Fallback to using the GUID if no name is available
+                            material_guid = active_material.get("GUID", "unknown")
+                            value = material_guid
+                            _LOGGER.debug("No material name available for hotend 2, using GUID: %s", value)
                     else:
                         _LOGGER.debug("Fewer than 2 extruders found for hotend 2 material type")
                         value = "unknown"
