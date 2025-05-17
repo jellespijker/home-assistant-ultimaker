@@ -10,6 +10,6 @@ def setup(hass: HomeAssistant, config):
     # Data that you want to share with your platforms
     hass.data[DOMAIN] = {"x": 0}
 
-    load_platform("sensor", DOMAIN, {}, config)
+    load_platform(hass, "sensor", DOMAIN, {}, config)
 
     return True
