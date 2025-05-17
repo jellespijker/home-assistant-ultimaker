@@ -1,272 +1,350 @@
-"""Platform for sensor integration.
-
-configuration.yaml
-sensor:
-  - platform: ultimaker
-    name: PRINTER_NAME
-    host: IP_ADDRESS
-    scan_interval: 10 (optional, default 10)
-    decimal: 2 (optional, default = 2)
-    resources:
-      - status (optional)
-      - state (optional)
-      - progress (optional)
-      - bed_temperature (optional)
-      - bed_temperature_target (optional)
-      - bed_type (optional)
-      - hotend_1_temperature (optional)
-      - hotend_1_temperature_target (optional)
-      - hotend_1_temperature_id (optional)
-      - hotend_2_temperature (optional)
-      - hotend_2_temperature_target (optional)
-      - hotend_2_temperature_id (optional)
-"""
-import asyncio
+"""Platform for sensor integration."""
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional, cast
 
-import aiohttp
-import async_timeout
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_NAME,
-    CONF_SCAN_INTERVAL,
-    CONF_SENSORS,
-    UnitOfTemperature,
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
 )
-TEMP_CELSIUS = UnitOfTemperature.CELSIUS
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.typing import HomeAssistantType, StateType
-from homeassistant.util import Throttle
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import StateType
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 
 from . import DOMAIN
+from .const import (
+    API_TYPE_CLOUD,
+    CONF_API_TYPE,
+    CONF_DECIMAL,
+    DEFAULT_DECIMAL,
+    SENSOR_STATUS,
+    SENSOR_STATE,
+    SENSOR_PROGRESS,
+    SENSOR_BED_TEMPERATURE,
+    SENSOR_BED_TEMPERATURE_TARGET,
+    SENSOR_BED_TYPE,
+    SENSOR_HOTEND_1_TEMPERATURE,
+    SENSOR_HOTEND_1_TEMPERATURE_TARGET,
+    SENSOR_HOTEND_1_ID,
+    SENSOR_HOTEND_2_TEMPERATURE,
+    SENSOR_HOTEND_2_TEMPERATURE_TARGET,
+    SENSOR_HOTEND_2_ID,
+    SENSOR_CLUSTER_STATUS,
+    SENSOR_PRINTER_COUNT,
+    SENSOR_MAINTENANCE_REQUIRED,
+    SENSOR_MATERIAL_REMAINING,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-SENSOR_TYPES = {
-    "status": ["Printer status", "", "mdi:printer-3d"],
-    "state": ["Print job state", "", "mdi:printer-3d-nozzle"],
-    "progress": ["Print job progress", "%", "mdi:progress-clock"],
-    "bed_temperature": ["Bed temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "bed_temperature_target": [
-        "Bed temperature target",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
-    "bed_type": ["Bed type", "", "mdi:layers"],
-    "hotend_1_temperature": ["Hotend 1 temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "hotend_1_temperature_target": [
-        "Hotend 1 temperature target",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
-    "hotend_1_id": ["Hotend 1 id", "", "mdi:printer-3d-nozzle-outline"],
-    "hotend_2_temperature": ["Hotend 2 temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "hotend_2_temperature_target": [
-        "Hotend 2 temperature target",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
-    "hotend_2_id": ["Hotend 2 id", "", "mdi:printer-3d-nozzle-outline"],
-}
+# Define sensor descriptions
+SENSOR_DESCRIPTIONS = [
+    SensorEntityDescription(
+        key=SENSOR_STATUS,
+        name="Printer status",
+        icon="mdi:printer-3d",
+    ),
+    SensorEntityDescription(
+        key=SENSOR_STATE,
+        name="Print job state",
+        icon="mdi:printer-3d-nozzle",
+    ),
+    SensorEntityDescription(
+        key=SENSOR_PROGRESS,
+        name="Print job progress",
+        native_unit_of_measurement=PERCENTAGE,
+        icon="mdi:progress-clock",
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_BED_TEMPERATURE,
+        name="Bed temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        icon="mdi:thermometer",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_BED_TEMPERATURE_TARGET,
+        name="Bed temperature target",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        icon="mdi:thermometer",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_BED_TYPE,
+        name="Bed type",
+        icon="mdi:layers",
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_1_TEMPERATURE,
+        name="Hotend 1 temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        icon="mdi:thermometer",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_1_TEMPERATURE_TARGET,
+        name="Hotend 1 temperature target",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        icon="mdi:thermometer",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_1_ID,
+        name="Hotend 1 id",
+        icon="mdi:printer-3d-nozzle-outline",
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_2_TEMPERATURE,
+        name="Hotend 2 temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        icon="mdi:thermometer",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_2_TEMPERATURE_TARGET,
+        name="Hotend 2 temperature target",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        icon="mdi:thermometer",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_2_ID,
+        name="Hotend 2 id",
+        icon="mdi:printer-3d-nozzle-outline",
+    ),
+]
 
-CONF_DECIMAL = "decimal"
+# Cloud-specific sensor descriptions
+CLOUD_SENSOR_DESCRIPTIONS = [
+    SensorEntityDescription(
+        key=SENSOR_CLUSTER_STATUS,
+        name="Cluster status",
+        icon="mdi:printer-3d-nozzle-alert",
+    ),
+    SensorEntityDescription(
+        key=SENSOR_PRINTER_COUNT,
+        name="Printer count",
+        icon="mdi:printer-3d",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_MAINTENANCE_REQUIRED,
+        name="Maintenance required",
+        icon="mdi:tools",
+    ),
+    SensorEntityDescription(
+        key=SENSOR_MATERIAL_REMAINING,
+        name="Material remaining",
+        native_unit_of_measurement=PERCENTAGE,
+        icon="mdi:spool",
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+]
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_NAME): cv.string,
-        vol.Optional(CONF_DECIMAL, default=2): cv.positive_int,
-        vol.Required(CONF_SENSORS, default=list(SENSOR_TYPES)): vol.All(
-            cv.ensure_list, [vol.In(SENSOR_TYPES)]
-        ),
-    }
-)
 
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    """Set up Ultimaker sensors based on a config entry."""
+    data = hass.data[DOMAIN][entry.entry_id]
+    coordinator = data["coordinator"]
+    api_client = data["api_client"]
 
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=10)
-BASE_URL = "http://{0}/api/v1"
+    # Determine which sensor descriptions to use based on API type
+    descriptions = SENSOR_DESCRIPTIONS.copy()
+    if entry.data.get(CONF_API_TYPE) == API_TYPE_CLOUD:
+        descriptions.extend(CLOUD_SENSOR_DESCRIPTIONS)
 
+    # Get decimal precision from options
+    decimal = entry.options.get(CONF_DECIMAL, DEFAULT_DECIMAL)
 
-async def async_setup_platform(
-    hass: HomeAssistantType, config, async_add_entities, discovery_info=None
-):
-    """Setup the Ultimaker printer sensors"""
-    session = async_get_clientsession(hass)
-    data = UltimakerStatusData(session, config.get(CONF_HOST))
-    await data.async_update()
-
+    # Create sensors
     entities = []
-    if CONF_SENSORS in config:
-        for sensor in config[CONF_SENSORS]:
-            sensor_type = sensor.lower()
-            name = f"{config.get(CONF_NAME)} {SENSOR_TYPES[sensor][0]}"
-            unit = SENSOR_TYPES[sensor][1]
-            icon = SENSOR_TYPES[sensor][2]
-
-            _LOGGER.debug(
-                f"Adding Ultimaker printer sensor: {name}, {sensor_type}, {unit}, {icon}"
+    for description in descriptions:
+        entities.append(
+            UltimakerSensor(
+                coordinator=coordinator,
+                description=description,
+                entry_id=entry.entry_id,
+                decimal=decimal,
             )
-            entities.append(
-                UltimakerStatusSensor(
-                    data, name, sensor_type, unit, icon, config.get(CONF_DECIMAL)
-                )
-            )
+        )
 
-    async_add_entities(entities, True)
+    async_add_entities(entities)
 
 
-class UltimakerStatusData(object):
-    """Handle Ultimaker object and limit updates"""
-
-    def __init__(self, session, host):
-        if host:
-            self._url_printer = BASE_URL.format(host) + "/printer"
-            self._url_print_job = BASE_URL.format(host) + "/print_job"
-            self._url_system = BASE_URL.format(host) + "/system"
-        self._host = host
-        self._session = session
-        self._data = None
-
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    async def async_update(self):
-        """Download and update data from the Ultimaker Printer"""
-        if self._host:
-            try:
-                printer_data = await self.fetch_data(self._url_printer)
-                print_job_data = await self.fetch_data(self._url_print_job)
-                system_data = await self.fetch_data(self._url_system)
-                self._data = printer_data.copy()
-                self._data.update(print_job_data)
-                self._data.update(system_data)
-            except aiohttp.ClientError:
-                self._data = {"status": "not connected"}
-            self._data["sampleTime"] = datetime.now()
-
-    async def fetch_data(self, url):
-        try:
-            with async_timeout.timeout(5):
-                response = await self._session.get(url)
-        except aiohttp.ClientError as err:
-            _LOGGER.warning(f"Printer {self._host} is offline")
-            raise err
-        except asyncio.TimeoutError:
-            _LOGGER.error(
-                f" Timeout error occurred while polling ultimaker printer using url {url}"
-            )
-        except Exception as err:
-            _LOGGER.error(
-                f"Unknown error occurred while polling Ultimaker printer using {url} -> error: {err}"
-            )
-            return {}
-
-        try:
-            ret = await response.json()
-        except Exception as err:
-            _LOGGER.error(f"Cannot parse data received from Ultimaker printer {err}")
-            return {}
-        return ret
-
-    @property
-    def latest_data(self):
-        return self._data
-
-
-class UltimakerStatusSensor(Entity):
-    """Representation of a Ultimaker status sensor"""
+class UltimakerSensor(CoordinatorEntity, SensorEntity):
+    """Representation of an Ultimaker sensor."""
 
     def __init__(
-        self, data: UltimakerStatusData, name, sensor_type, unit, icon, decimal
-    ):
+        self,
+        coordinator: DataUpdateCoordinator,
+        description: SensorEntityDescription,
+        entry_id: str,
+        decimal: int,
+    ) -> None:
         """Initialize the sensor."""
-        self._data = data
-        self._name = name
-        self._type = sensor_type
-        self._unit = unit
-        self._icon = icon
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._entry_id = entry_id
         self._decimal = decimal
+        self._attr_unique_id = f"{entry_id}_{description.key}"
 
-        self._state = None
-        self._last_updated = None
-
-    @property
-    def name(self) -> Optional[str]:
-        return self._name
-
-    @property
-    def icon(self) -> Optional[str]:
-        return self._icon
+        # Set up device info
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Ultimaker Printer",
+            manufacturer="Ultimaker",
+            model="Ultimaker Printer",
+        )
 
     @property
-    def state(self) -> StateType:
-        if isinstance(self._state, float):
-            return round(self._state, self._decimal)
-        else:
-            return self._state
+    def native_value(self) -> StateType:
+        """Return the state of the sensor."""
+        data = self.coordinator.data
+        if not data:
+            return None
+
+        value = None
+        key = self.entity_description.key
+
+        if key == SENSOR_STATUS:
+            value = data.get("status", "not connected")
+
+        elif key == SENSOR_STATE:
+            value = data.get("state", None)
+            if value:
+                value = value.replace("_", " ")
+
+        elif key == SENSOR_PROGRESS:
+            value = data.get("progress", 0)
+            if value:
+                value *= 100
+
+        elif key == SENSOR_BED_TEMPERATURE:
+            bed = data.get("bed", {})
+            temperature = bed.get("temperature", {})
+            value = temperature.get("current", None)
+
+        elif key == SENSOR_BED_TEMPERATURE_TARGET:
+            bed = data.get("bed", {})
+            temperature = bed.get("temperature", {})
+            value = temperature.get("target", None)
+
+        elif key == SENSOR_BED_TYPE:
+            bed = data.get("bed", {})
+            value = bed.get("type", None)
+
+        elif key == SENSOR_HOTEND_1_TEMPERATURE:
+            heads = data.get("heads", [{}])
+            if heads and len(heads) > 0:
+                head = heads[0]
+                extruders = head.get("extruders", [{}])
+                if extruders and len(extruders) > 0:
+                    extruder = extruders[0]
+                    hot_end = extruder.get("hotend", {})
+                    temperature = hot_end.get("temperature", {})
+                    value = temperature.get("current", None)
+
+        elif key == SENSOR_HOTEND_1_TEMPERATURE_TARGET:
+            heads = data.get("heads", [{}])
+            if heads and len(heads) > 0:
+                head = heads[0]
+                extruders = head.get("extruders", [{}])
+                if extruders and len(extruders) > 0:
+                    extruder = extruders[0]
+                    hot_end = extruder.get("hotend", {})
+                    temperature = hot_end.get("temperature", {})
+                    value = temperature.get("target", None)
+
+        elif key == SENSOR_HOTEND_1_ID:
+            heads = data.get("heads", [{}])
+            if heads and len(heads) > 0:
+                head = heads[0]
+                extruders = head.get("extruders", [{}])
+                if extruders and len(extruders) > 0:
+                    extruder = extruders[0]
+                    hot_end = extruder.get("hotend", {})
+                    value = hot_end.get("id", None)
+
+        elif key == SENSOR_HOTEND_2_TEMPERATURE:
+            heads = data.get("heads", [{}])
+            if heads and len(heads) > 0:
+                head = heads[0]
+                extruders = head.get("extruders", [{}])
+                if extruders and len(extruders) > 1:
+                    extruder = extruders[1]
+                    hot_end = extruder.get("hotend", {})
+                    temperature = hot_end.get("temperature", {})
+                    value = temperature.get("current", None)
+
+        elif key == SENSOR_HOTEND_2_TEMPERATURE_TARGET:
+            heads = data.get("heads", [{}])
+            if heads and len(heads) > 0:
+                head = heads[0]
+                extruders = head.get("extruders", [{}])
+                if extruders and len(extruders) > 1:
+                    extruder = extruders[1]
+                    hot_end = extruder.get("hotend", {})
+                    temperature = hot_end.get("temperature", {})
+                    value = temperature.get("target", None)
+
+        elif key == SENSOR_HOTEND_2_ID:
+            heads = data.get("heads", [{}])
+            if heads and len(heads) > 0:
+                head = heads[0]
+                extruders = head.get("extruders", [{}])
+                if extruders and len(extruders) > 1:
+                    extruder = extruders[1]
+                    hot_end = extruder.get("hotend", {})
+                    value = hot_end.get("id", None)
+
+        # Cloud-specific sensors
+        elif key == SENSOR_CLUSTER_STATUS:
+            value = data.get("cluster_status", None)
+
+        elif key == SENSOR_PRINTER_COUNT:
+            value = data.get("printer_count", 0)
+
+        elif key == SENSOR_MAINTENANCE_REQUIRED:
+            # This is a placeholder - in a real implementation, you would
+            # check if any maintenance tasks are pending
+            value = "No"
+
+        elif key == SENSOR_MATERIAL_REMAINING:
+            # This is a placeholder - in a real implementation, you would
+            # get the material remaining from the API
+            value = 0
+
+        # Round float values to the specified decimal precision
+        if isinstance(value, float):
+            value = round(value, self._decimal)
+
+        return value
 
     @property
-    def unit_of_measurement(self) -> Optional[str]:
-        return self._unit
-
-    @property
-    def device_state_attributes(self) -> Optional[Dict[str, Any]]:
-        attr = {}
-        if self._last_updated is not None:
-            attr["Last Updated"] = self._last_updated
-        return attr
-
-    async def async_update(self):
-
-        await self._data.async_update()
-        data = self._data.latest_data
-
-        if data:
-            self._last_updated = data.get("sampleTime", None)
-
-            if self._type == "status":
-                self._state = data.get("status", "not connected")
-
-            elif self._type == "state":
-                self._state = data.get("state", None)
-                if self._state:
-                    self._state = self._state.replace("_", " ")
-
-            elif self._type == "progress":
-                self._state = data.get("progress", 0)
-                if self._state:
-                    self._state *= 100
-                self._state = self._state
-
-            elif "bed" in self._type:
-                bed = data.get("bed", None)
-                if "temperature" in self._type and bed:
-                    temperature = bed.get("temperature", None)
-                    if temperature:
-                        if "target" in self._type:
-                            self._state = temperature.get("target", None)
-                        else:
-                            self._state = temperature.get("current", None)
-                if "type" in self._type and bed:
-                    self._state = bed.get("type", None)
-
-            elif "hotend" in self._type:
-                head = data.get("heads", [None])[0]
-                if head:
-                    idx = int(self._type.split("_")[1]) - 1
-                    extruder = head["extruders"][idx]
-                    hot_end = extruder["hotend"]
-                    if "temperature" in self._type and hot_end:
-                        temperature = hot_end["temperature"]
-                        if "target" in self._type:
-                            self._state = temperature.get("target", None)
-                        else:
-                            self._state = temperature.get("current", None)
-                    if "id" in self._type and hot_end:
-                        self._state = hot_end["id"]
-
-            _LOGGER.debug(f"Device: {self._type} State: {self._state}")
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return the state attributes."""
+        attrs = {}
+        data = self.coordinator.data
+        if data and "sampleTime" in data:
+            attrs["Last Updated"] = data["sampleTime"]
+        return attrs

@@ -1,0 +1,113 @@
+﻿{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ultimaker Connection Type",
+        "description": "Choose how to connect to your Ultimaker printer",
+        "data": {
+          "api_type": "Connection Type"
+        }
+      },
+      "local": {
+        "title": "Local API Connection",
+        "description": "Connect directly to your Ultimaker printer on your local network",
+        "data": {
+          "host": "Printer IP Address"
+        }
+      },
+      "pick_organization": {
+        "title": "Select Workspace",
+        "description": "You have multiple workspaces available. Please select which one to use.",
+        "data": {
+          "organization_id": "Workspace"
+        }
+      },
+      "auth": {
+        "title": "Authorize Ultimaker",
+        "description": "Please authorize Home Assistant to access your Ultimaker account"
+      },
+      "reauth_confirm": {
+        "title": "Reauthorize Ultimaker",
+        "description": "The Ultimaker integration needs to re-authenticate your account"
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the printer. Please check the IP address and ensure the printer is online.",
+      "invalid_auth": "Invalid authentication. Please check your client credentials.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This Ultimaker printer is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "missing_configuration": "The Ultimaker integration is not configured. Please follow the documentation.",
+      "oauth_error": "Received invalid token data.",
+      "single_instance_allowed": "Already configured. Only a single configuration possible.",
+      "no_organizations": "No workspaces found in your Ultimaker account."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ultimaker Options",
+        "description": "Configure the Ultimaker integration",
+        "data": {
+          "scan_interval": "Data update interval (seconds)",
+          "decimal": "Decimal precision for temperature values",
+          "cluster_id": "Cluster ID (leave empty to use the first available cluster)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Printer status"
+      },
+      "state": {
+        "name": "Print job state"
+      },
+      "progress": {
+        "name": "Print job progress"
+      },
+      "bed_temperature": {
+        "name": "Bed temperature"
+      },
+      "bed_temperature_target": {
+        "name": "Bed temperature target"
+      },
+      "bed_type": {
+        "name": "Bed type"
+      },
+      "hotend_1_temperature": {
+        "name": "Hotend 1 temperature"
+      },
+      "hotend_1_temperature_target": {
+        "name": "Hotend 1 temperature target"
+      },
+      "hotend_1_id": {
+        "name": "Hotend 1 ID"
+      },
+      "hotend_2_temperature": {
+        "name": "Hotend 2 temperature"
+      },
+      "hotend_2_temperature_target": {
+        "name": "Hotend 2 temperature target"
+      },
+      "hotend_2_id": {
+        "name": "Hotend 2 ID"
+      },
+      "cluster_status": {
+        "name": "Cluster status"
+      },
+      "printer_count": {
+        "name": "Printer count"
+      },
+      "maintenance_required": {
+        "name": "Maintenance required"
+      },
+      "material_remaining": {
+        "name": "Material remaining"
+      }
+    }
+  }
+}

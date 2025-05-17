@@ -1,10 +1,21 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
-# Home Assistant Ultimaker printers
+# Home Assistant Ultimaker Integration
 
 ![sensors](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/home-assistant-um.png)
 
-Adds support for the following ultimaker printer sensors:
+## Features
 
+This integration supports both local API and cloud API connections to Ultimaker printers:
+
+### Local API
+Connect directly to your Ultimaker printer on your local network.
+
+### Cloud API (New!)
+Connect to your Ultimaker printer(s) through the Ultimaker Connect cloud service using OpenID Connect (OIDC) authentication.
+
+## Supported Sensors
+
+### Local API Sensors
 - Printer status
 - Print job state
 - Print job progress
@@ -15,21 +26,34 @@ Adds support for the following ultimaker printer sensors:
 - Bed temperature
 - Bed target temperature
 
-# Install
+### Cloud API Sensors
+All Local API sensors plus:
+- Cluster status
+- Printer count
+- Maintenance required
+- Material remaining
 
-## Using HACS:
+## Installation
 
+### Using HACS:
 Just search for **ultimaker** in the HACS integration bar
 
-
-## From source:
-
+### From source:
 Copy the `ultimaker` directory in your own `custom_components` folder
 
+## Setup
 
-# Usage
+### UI Setup (Recommended)
+1. In Home Assistant, go to **Settings** > **Devices & Services**
+2. Click the **+ ADD INTEGRATION** button
+3. Search for and select **Ultimaker**
+4. Follow the setup wizard
 
-configuration.yaml
+For detailed setup instructions, including how to set up the cloud API connection with OIDC authentication, see the [Setup Guide](custom_components/ultimaker/SETUP.md).
+
+### YAML Configuration (Legacy)
+
+The integration still supports YAML configuration for the local API:
 
 ```yaml
 sensor:
@@ -53,7 +77,9 @@ sensor:
       - hotend_2_temperature_target  # optional
 ```
 
-add a camera to the configuration.yaml
+## Camera Integration
+
+Add a camera to the configuration.yaml:
 
 ```yaml
 camera:
@@ -62,9 +88,9 @@ camera:
     framerate: 4
 ```
 
-add a lovelace card to the UI
+## Lovelace UI Example
 
-```typescript
+```yaml
 type: vertical-stack
 cards:
   - type: entity
