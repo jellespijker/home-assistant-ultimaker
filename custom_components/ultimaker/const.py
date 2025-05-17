@@ -47,3 +47,16 @@ SENSOR_CLUSTER_STATUS = "cluster_status"
 SENSOR_PRINTER_COUNT = "printer_count"
 SENSOR_MAINTENANCE_REQUIRED = "maintenance_required"
 SENSOR_MATERIAL_REMAINING = "material_remaining"
+
+# Hotend material sensors
+SENSOR_HOTEND_1_MATERIAL_EXTRUDED = "hotend_1_material_extruded"
+SENSOR_HOTEND_1_MATERIAL_REMAINING = "hotend_1_material_remaining"
+SENSOR_HOTEND_1_MATERIAL_TYPE = "hotend_1_material_type"
+SENSOR_HOTEND_2_MATERIAL_EXTRUDED = "hotend_2_material_extruded"
+SENSOR_HOTEND_2_MATERIAL_REMAINING = "hotend_2_material_remaining"
+SENSOR_HOTEND_2_MATERIAL_TYPE = "hotend_2_material_type"
+
+# Print job time sensors
+SENSOR_PRINT_JOB_TIME_TOTAL = "print_job_time_total"
+SENSOR_PRINT_JOB_TIME_ELAPSED = "print_job_time_elapsed"
+SENSOR_PRINT_JOB_TIME_REMAINING = "print_job_time_remaining"

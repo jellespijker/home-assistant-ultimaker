@@ -44,6 +44,15 @@ from .const import (
     SENSOR_PRINTER_COUNT,
     SENSOR_MAINTENANCE_REQUIRED,
     SENSOR_MATERIAL_REMAINING,
+    SENSOR_HOTEND_1_MATERIAL_EXTRUDED,
+    SENSOR_HOTEND_1_MATERIAL_REMAINING,
+    SENSOR_HOTEND_1_MATERIAL_TYPE,
+    SENSOR_HOTEND_2_MATERIAL_EXTRUDED,
+    SENSOR_HOTEND_2_MATERIAL_REMAINING,
+    SENSOR_HOTEND_2_MATERIAL_TYPE,
+    SENSOR_PRINT_JOB_TIME_TOTAL,
+    SENSOR_PRINT_JOB_TIME_ELAPSED,
+    SENSOR_PRINT_JOB_TIME_REMAINING,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -131,6 +140,71 @@ SENSOR_DESCRIPTIONS = [
         key=SENSOR_HOTEND_2_ID,
         name="Hotend 2 id",
         icon="mdi:printer-3d-nozzle-outline",
+    ),
+    # Hotend 1 material sensors
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_1_MATERIAL_EXTRUDED,
+        name="Hotend 1 material extruded",
+        native_unit_of_measurement="mm",
+        icon="mdi:printer-3d-nozzle",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_1_MATERIAL_REMAINING,
+        name="Hotend 1 material remaining",
+        native_unit_of_measurement="mm",
+        icon="mdi:spool",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_1_MATERIAL_TYPE,
+        name="Hotend 1 material type",
+        icon="mdi:material-design",
+    ),
+    # Hotend 2 material sensors
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_2_MATERIAL_EXTRUDED,
+        name="Hotend 2 material extruded",
+        native_unit_of_measurement="mm",
+        icon="mdi:printer-3d-nozzle",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_2_MATERIAL_REMAINING,
+        name="Hotend 2 material remaining",
+        native_unit_of_measurement="mm",
+        icon="mdi:spool",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_HOTEND_2_MATERIAL_TYPE,
+        name="Hotend 2 material type",
+        icon="mdi:material-design",
+    ),
+    # Print job time sensors
+    SensorEntityDescription(
+        key=SENSOR_PRINT_JOB_TIME_TOTAL,
+        name="Print job total time",
+        native_unit_of_measurement="s",
+        icon="mdi:clock-outline",
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_PRINT_JOB_TIME_ELAPSED,
+        name="Print job elapsed time",
+        native_unit_of_measurement="s",
+        icon="mdi:clock-start",
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key=SENSOR_PRINT_JOB_TIME_REMAINING,
+        name="Print job remaining time",
+        native_unit_of_measurement="s",
+        icon="mdi:clock-end",
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
 ]
 
@@ -292,7 +366,14 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
             return False
 
         # For hotend 2 sensors, check if the printer has a second extruder
-        if sensor_key in [SENSOR_HOTEND_2_TEMPERATURE, SENSOR_HOTEND_2_TEMPERATURE_TARGET, SENSOR_HOTEND_2_ID]:
+        if sensor_key in [
+            SENSOR_HOTEND_2_TEMPERATURE, 
+            SENSOR_HOTEND_2_TEMPERATURE_TARGET, 
+            SENSOR_HOTEND_2_ID,
+            SENSOR_HOTEND_2_MATERIAL_EXTRUDED,
+            SENSOR_HOTEND_2_MATERIAL_REMAINING,
+            SENSOR_HOTEND_2_MATERIAL_TYPE
+        ]:
             heads = data.get("heads", [{}])
             if not heads or len(heads) == 0:
                 return False
@@ -499,6 +580,168 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
                     _LOGGER.debug("No heads found for material remaining")
             except Exception as err:
                 _LOGGER.warning("Error calculating material remaining: %s", err)
+                value = 0
+
+        # Hotend 1 material sensors
+        elif key == SENSOR_HOTEND_1_MATERIAL_EXTRUDED:
+            try:
+                heads = data.get("heads", [{}])
+                if heads and len(heads) > 0:
+                    head = heads[0]
+                    extruders = head.get("extruders", [{}])
+                    if extruders and len(extruders) > 0:
+                        extruder = extruders[0]
+                        hotend = extruder.get("hotend", {})
+                        statistics = hotend.get("statistics", {})
+                        value = statistics.get("material_extruded", 0)
+                        _LOGGER.debug("Hotend 1 material extruded: %s mm", value)
+                    else:
+                        _LOGGER.debug("No extruders found for hotend 1 material extruded")
+                        value = 0
+                else:
+                    _LOGGER.debug("No heads found for hotend 1 material extruded")
+                    value = 0
+            except Exception as err:
+                _LOGGER.warning("Error getting hotend 1 material extruded: %s", err)
+                value = 0
+
+        elif key == SENSOR_HOTEND_1_MATERIAL_REMAINING:
+            try:
+                heads = data.get("heads", [{}])
+                if heads and len(heads) > 0:
+                    head = heads[0]
+                    extruders = head.get("extruders", [{}])
+                    if extruders and len(extruders) > 0:
+                        extruder = extruders[0]
+                        active_material = extruder.get("active_material", {})
+                        value = active_material.get("length_remaining", 0)
+                        _LOGGER.debug("Hotend 1 material remaining: %s mm", value)
+                    else:
+                        _LOGGER.debug("No extruders found for hotend 1 material remaining")
+                        value = 0
+                else:
+                    _LOGGER.debug("No heads found for hotend 1 material remaining")
+                    value = 0
+            except Exception as err:
+                _LOGGER.warning("Error getting hotend 1 material remaining: %s", err)
+                value = 0
+
+        elif key == SENSOR_HOTEND_1_MATERIAL_TYPE:
+            try:
+                heads = data.get("heads", [{}])
+                if heads and len(heads) > 0:
+                    head = heads[0]
+                    extruders = head.get("extruders", [{}])
+                    if extruders and len(extruders) > 0:
+                        extruder = extruders[0]
+                        active_material = extruder.get("active_material", {})
+                        value = active_material.get("GUID", "unknown")
+                        _LOGGER.debug("Hotend 1 material type: %s", value)
+                    else:
+                        _LOGGER.debug("No extruders found for hotend 1 material type")
+                        value = "unknown"
+                else:
+                    _LOGGER.debug("No heads found for hotend 1 material type")
+                    value = "unknown"
+            except Exception as err:
+                _LOGGER.warning("Error getting hotend 1 material type: %s", err)
+                value = "unknown"
+
+        # Hotend 2 material sensors
+        elif key == SENSOR_HOTEND_2_MATERIAL_EXTRUDED:
+            try:
+                heads = data.get("heads", [{}])
+                if heads and len(heads) > 0:
+                    head = heads[0]
+                    extruders = head.get("extruders", [{}])
+                    if extruders and len(extruders) > 1:
+                        extruder = extruders[1]
+                        hotend = extruder.get("hotend", {})
+                        statistics = hotend.get("statistics", {})
+                        value = statistics.get("material_extruded", 0)
+                        _LOGGER.debug("Hotend 2 material extruded: %s mm", value)
+                    else:
+                        _LOGGER.debug("Fewer than 2 extruders found for hotend 2 material extruded")
+                        value = 0
+                else:
+                    _LOGGER.debug("No heads found for hotend 2 material extruded")
+                    value = 0
+            except Exception as err:
+                _LOGGER.warning("Error getting hotend 2 material extruded: %s", err)
+                value = 0
+
+        elif key == SENSOR_HOTEND_2_MATERIAL_REMAINING:
+            try:
+                heads = data.get("heads", [{}])
+                if heads and len(heads) > 0:
+                    head = heads[0]
+                    extruders = head.get("extruders", [{}])
+                    if extruders and len(extruders) > 1:
+                        extruder = extruders[1]
+                        active_material = extruder.get("active_material", {})
+                        value = active_material.get("length_remaining", 0)
+                        _LOGGER.debug("Hotend 2 material remaining: %s mm", value)
+                    else:
+                        _LOGGER.debug("Fewer than 2 extruders found for hotend 2 material remaining")
+                        value = 0
+                else:
+                    _LOGGER.debug("No heads found for hotend 2 material remaining")
+                    value = 0
+            except Exception as err:
+                _LOGGER.warning("Error getting hotend 2 material remaining: %s", err)
+                value = 0
+
+        elif key == SENSOR_HOTEND_2_MATERIAL_TYPE:
+            try:
+                heads = data.get("heads", [{}])
+                if heads and len(heads) > 0:
+                    head = heads[0]
+                    extruders = head.get("extruders", [{}])
+                    if extruders and len(extruders) > 1:
+                        extruder = extruders[1]
+                        active_material = extruder.get("active_material", {})
+                        value = active_material.get("GUID", "unknown")
+                        _LOGGER.debug("Hotend 2 material type: %s", value)
+                    else:
+                        _LOGGER.debug("Fewer than 2 extruders found for hotend 2 material type")
+                        value = "unknown"
+                else:
+                    _LOGGER.debug("No heads found for hotend 2 material type")
+                    value = "unknown"
+            except Exception as err:
+                _LOGGER.warning("Error getting hotend 2 material type: %s", err)
+                value = "unknown"
+
+        # Print job time sensors
+        elif key == SENSOR_PRINT_JOB_TIME_TOTAL:
+            try:
+                value = data.get("time_total", 0)
+                _LOGGER.debug("Print job total time: %s seconds", value)
+            except Exception as err:
+                _LOGGER.warning("Error getting print job total time: %s", err)
+                value = 0
+
+        elif key == SENSOR_PRINT_JOB_TIME_ELAPSED:
+            try:
+                value = data.get("time_elapsed", 0)
+                _LOGGER.debug("Print job elapsed time: %s seconds", value)
+            except Exception as err:
+                _LOGGER.warning("Error getting print job elapsed time: %s", err)
+                value = 0
+
+        elif key == SENSOR_PRINT_JOB_TIME_REMAINING:
+            try:
+                total_time = data.get("time_total", 0)
+                elapsed_time = data.get("time_elapsed", 0)
+
+                if total_time > 0 and elapsed_time <= total_time:
+                    value = total_time - elapsed_time
+                else:
+                    value = 0
+
+                _LOGGER.debug("Print job remaining time: %s seconds", value)
+            except Exception as err:
+                _LOGGER.warning("Error calculating print job remaining time: %s", err)
                 value = 0
 
         # Round float values to the specified decimal precision

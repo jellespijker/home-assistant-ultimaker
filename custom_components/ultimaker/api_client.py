@@ -136,6 +136,8 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                 _LOGGER.debug("Setting default print job fields")
                 self._data.setdefault("state", "idle")
                 self._data.setdefault("progress", 0)
+                self._data.setdefault("time_total", 0)
+                self._data.setdefault("time_elapsed", 0)
 
             # Log the final data structure for debugging
             _LOGGER.debug("Final data structure before returning: %s", self._data)
@@ -209,6 +211,14 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                 _LOGGER.debug("Adding default hotend ID: unknown")
                 hotend["id"] = "unknown"
 
+            if "statistics" not in hotend:
+                _LOGGER.debug("Adding empty statistics data structure to first hotend")
+                hotend["statistics"] = {}
+
+            if "material_extruded" not in hotend["statistics"]:
+                _LOGGER.debug("Adding default material extruded: 0")
+                hotend["statistics"]["material_extruded"] = 0
+
             if "active_material" not in extruder:
                 _LOGGER.debug("Adding empty active_material data structure to first extruder")
                 extruder["active_material"] = {}
@@ -216,6 +226,10 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
             if "length_remaining" not in extruder["active_material"]:
                 _LOGGER.debug("Adding default material length remaining: 0")
                 extruder["active_material"]["length_remaining"] = 0
+
+            if "GUID" not in extruder["active_material"]:
+                _LOGGER.debug("Adding default material GUID: unknown")
+                extruder["active_material"]["GUID"] = "unknown"
 
             # If there's a second extruder, ensure it has the required fields
             if len(head["extruders"]) > 1:
@@ -243,6 +257,26 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                 if "id" not in hotend2:
                     _LOGGER.debug("Adding default second hotend ID: unknown")
                     hotend2["id"] = "unknown"
+
+                if "statistics" not in hotend2:
+                    _LOGGER.debug("Adding empty statistics data structure to second hotend")
+                    hotend2["statistics"] = {}
+
+                if "material_extruded" not in hotend2["statistics"]:
+                    _LOGGER.debug("Adding default material extruded for second hotend: 0")
+                    hotend2["statistics"]["material_extruded"] = 0
+
+                if "active_material" not in extruder2:
+                    _LOGGER.debug("Adding empty active_material data structure to second extruder")
+                    extruder2["active_material"] = {}
+
+                if "length_remaining" not in extruder2["active_material"]:
+                    _LOGGER.debug("Adding default material length remaining for second extruder: 0")
+                    extruder2["active_material"]["length_remaining"] = 0
+
+                if "GUID" not in extruder2["active_material"]:
+                    _LOGGER.debug("Adding default material GUID for second extruder: unknown")
+                    extruder2["active_material"]["GUID"] = "unknown"
 
             _LOGGER.info("Data structure prepared for sensors, all required fields are present")
 
