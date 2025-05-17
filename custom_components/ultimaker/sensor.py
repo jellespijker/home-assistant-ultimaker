@@ -232,6 +232,23 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
         )
 
     @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        if not self.coordinator.last_update_success:
+            return False
+
+        # For status sensor, always available if coordinator has data
+        if self.entity_description.key == SENSOR_STATUS and self.coordinator.data:
+            return True
+
+        # For other sensors, check if we have valid data
+        data = self.coordinator.data
+        if not data or data.get("status") in ["not connected", "timeout", "error"]:
+            return False
+
+        return True
+
+    @property
     def native_value(self) -> StateType:
         """Return the state of the sensor."""
         data = self.coordinator.data

@@ -54,24 +54,38 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
     async def async_update(self) -> None:
         """Update data from the API."""
         if not self._host:
-            return
+            _LOGGER.error("No host configured for Ultimaker printer")
+            raise UpdateFailed("No host configured")
 
         try:
+            _LOGGER.debug("Fetching printer data from %s", self._url_printer)
             printer_data = await self._fetch_data(self._url_printer)
+            if not printer_data:
+                _LOGGER.error("Failed to fetch printer data from %s", self._url_printer)
+                raise UpdateFailed("Failed to fetch printer data")
+
+            _LOGGER.debug("Fetching print job data from %s", self._url_print_job)
             print_job_data = await self._fetch_data(self._url_print_job)
+
+            _LOGGER.debug("Fetching system data from %s", self._url_system)
             system_data = await self._fetch_data(self._url_system)
+
             self._data = printer_data.copy()
             self._data.update(print_job_data)
             self._data.update(system_data)
+            _LOGGER.debug("Successfully updated data from Ultimaker printer at %s", self._host)
         except aiohttp.ClientError as err:
-            _LOGGER.error("Error fetching data from Ultimaker printer: %s", err)
+            _LOGGER.error("Connection error fetching data from Ultimaker printer at %s: %s", self._host, err)
             self._data = {"status": "not connected"}
+            raise UpdateFailed(f"Connection error: {err}")
         except asyncio.TimeoutError:
-            _LOGGER.error("Timeout error fetching data from Ultimaker printer")
+            _LOGGER.error("Timeout error fetching data from Ultimaker printer at %s", self._host)
             self._data = {"status": "timeout"}
+            raise UpdateFailed("Connection timed out")
         except Exception as err:
-            _LOGGER.error("Unknown error fetching data from Ultimaker printer: %s", err)
+            _LOGGER.error("Unknown error fetching data from Ultimaker printer at %s: %s", self._host, err)
             self._data = {"status": "error"}
+            raise UpdateFailed(f"Unknown error: {err}")
 
         self._data["sampleTime"] = datetime.now()
 
@@ -79,25 +93,45 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
         """Fetch data from the API."""
         try:
             with async_timeout.timeout(5):
+                _LOGGER.debug("Making GET request to %s", url)
                 response = await self._session.get(url)
+
                 if response.status >= 400:
+                    error_text = await response.text()
                     _LOGGER.error(
-                        "Error response from Ultimaker printer: %s", response.status
+                        "Error response from Ultimaker printer at %s: HTTP %s - %s",
+                        self._host,
+                        response.status,
+                        error_text
                     )
                     return {}
-                return await response.json()
+
+                data = await response.json()
+                _LOGGER.debug("Received data from %s: %s", url, data)
+                return data
+
         except aiohttp.ClientError as err:
-            _LOGGER.warning("Printer %s is offline: %s", self._host, err)
+            _LOGGER.warning("Printer %s is offline or unreachable: %s", self._host, err)
             raise
         except asyncio.TimeoutError:
             _LOGGER.error(
-                "Timeout error occurred while polling ultimaker printer using url %s",
+                "Timeout error occurred while polling Ultimaker printer at %s using url %s",
+                self._host,
                 url,
             )
             raise
+        except ValueError as err:
+            _LOGGER.error(
+                "Invalid JSON response from Ultimaker printer at %s using url %s: %s",
+                self._host,
+                url,
+                err,
+            )
+            return {}
         except Exception as err:
             _LOGGER.error(
-                "Unknown error occurred while polling Ultimaker printer using %s: %s",
+                "Unknown error occurred while polling Ultimaker printer at %s using url %s: %s",
+                self._host,
                 url,
                 err,
             )
