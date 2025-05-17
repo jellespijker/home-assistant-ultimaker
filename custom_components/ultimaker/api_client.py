@@ -58,21 +58,40 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
             raise UpdateFailed("No host configured")
 
         try:
+            # Fetch printer data
             _LOGGER.debug("Fetching printer data from %s", self._url_printer)
             printer_data = await self._fetch_data(self._url_printer)
             if not printer_data:
                 _LOGGER.error("Failed to fetch printer data from %s", self._url_printer)
+                self._data = {"status": "not connected"}
                 raise UpdateFailed("Failed to fetch printer data")
 
+            # Fetch print job data - this might fail if no print job is active
             _LOGGER.debug("Fetching print job data from %s", self._url_print_job)
-            print_job_data = await self._fetch_data(self._url_print_job)
+            try:
+                print_job_data = await self._fetch_data(self._url_print_job)
+            except Exception as err:
+                _LOGGER.warning("Error fetching print job data (this is normal if no print job is active): %s", err)
+                print_job_data = {}
 
+            # Fetch system data
             _LOGGER.debug("Fetching system data from %s", self._url_system)
-            system_data = await self._fetch_data(self._url_system)
+            try:
+                system_data = await self._fetch_data(self._url_system)
+            except Exception as err:
+                _LOGGER.error("Error fetching system data: %s", err)
+                system_data = {}
 
+            # Merge all data
             self._data = printer_data.copy()
-            self._data.update(print_job_data)
-            self._data.update(system_data)
+            if print_job_data:
+                self._data.update(print_job_data)
+            if system_data:
+                self._data.update(system_data)
+
+            # Log the merged data for debugging
+            _LOGGER.debug("Merged data: %s", self._data)
+
             _LOGGER.debug("Successfully updated data from Ultimaker printer at %s", self._host)
         except aiohttp.ClientError as err:
             _LOGGER.error("Connection error fetching data from Ultimaker printer at %s: %s", self._host, err)
@@ -108,6 +127,15 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
 
                 data = await response.json()
                 _LOGGER.debug("Received data from %s: %s", url, data)
+
+                # Check if data is empty or None
+                if not data:
+                    _LOGGER.warning(
+                        "Empty data received from Ultimaker printer at %s using url %s",
+                        self._host,
+                        url,
+                    )
+
                 return data
 
         except aiohttp.ClientError as err:
