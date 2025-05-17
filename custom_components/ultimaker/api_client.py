@@ -37,7 +37,7 @@ class UltimakerApiClientBase:
         """Return the latest data."""
         return self._data or {}
 
-    async def async_update(self) -> None:
+    async def async_update(self) -> Dict[str, Any]:
         """Update data from the API."""
         raise NotImplementedError("Subclasses must implement this method")
 
@@ -58,7 +58,7 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
         _LOGGER.info("UltimakerLocalApiClient initialized successfully")
 
     @Throttle(timedelta(seconds=DEFAULT_SCAN_INTERVAL_LOCAL))
-    async def async_update(self) -> None:
+    async def async_update(self) -> Dict[str, Any]:
         """Update data from the API."""
         _LOGGER.info("Starting update cycle for Ultimaker printer at %s", self._host)
 
@@ -82,32 +82,169 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
             self._data = printer_data
             _LOGGER.debug("Stored printer data in self._data")
 
+            # Fetch print job data first - we'll use it for both status verification and data enrichment
+            _LOGGER.debug("Fetching print job data from %s", self._url_print_job)
+            print_job_data = None
+            try:
+                print_job_data = await self._fetch_data(self._url_print_job)
+                if print_job_data:
+                    _LOGGER.debug("Received print job data: %s", print_job_data)
+                else:
+                    _LOGGER.debug("No print job data received (printer may be idle)")
+            except Exception as err:
+                _LOGGER.warning("Error fetching print job data (this is normal if no print job is active): %s", err)
+
             # Ensure status is always present
             if "status" not in self._data:
                 _LOGGER.debug("Status field not found in printer data, defaulting to 'idle'")
                 self._data["status"] = "idle"
             else:
-                _LOGGER.info("Printer status: %s", self._data["status"])
+                raw_status = self._data["status"]
+                _LOGGER.debug("Raw printer status from API: %s", raw_status)
 
-            # Try to fetch print job data for additional information
-            _LOGGER.debug("Fetching print job data from %s", self._url_print_job)
-            try:
-                print_job_data = await self._fetch_data(self._url_print_job)
+                # Verify the status is accurate by cross-checking with print job data
                 if print_job_data:
-                    _LOGGER.debug("Received print job data: %s", print_job_data)
-                    # Add print job data fields
-                    _LOGGER.debug("Merging print job data into self._data")
-                    for key, value in print_job_data.items():
-                        _LOGGER.debug("Adding print job field: %s = %s", key, value)
-                        self._data[key] = value
+                    job_state = print_job_data.get("state", "").lower()
+                    job_progress = print_job_data.get("progress", 0)
+
+                    # If printer says "printing" but job is complete or near complete, fix the status
+                    if raw_status == "printing" and job_state in ["finished", "done", "complete", "success", "wait_cleanup"]:
+                        _LOGGER.info("Printer reports 'printing' but job state is '%s', correcting status to 'idle'", job_state)
+                        self._data["status"] = "idle"
+                    elif raw_status == "printing" and job_progress >= 0.999:  # 99.9% or more
+                        _LOGGER.info("Printer reports 'printing' but job progress is %.1f%%, correcting status to 'idle'", job_progress * 100)
+                        self._data["status"] = "idle"
+                    else:
+                        _LOGGER.info("Printer status: %s (verified with job state: %s, progress: %.1f%%)", 
+                                    raw_status, job_state, job_progress * 100)
                 else:
-                    _LOGGER.debug("No print job data received (printer may be idle)")
-            except Exception as err:
-                _LOGGER.warning("Error fetching print job data (this is normal if no print job is active): %s", err)
+                    # No print job data but printer says "printing" - this is inconsistent
+                    if raw_status == "printing":
+                        _LOGGER.warning("Printer reports 'printing' but no print job data found, correcting status to 'idle'")
+                        self._data["status"] = "idle"
+                    else:
+                        _LOGGER.info("Printer status: %s (no active print job)", raw_status)
+
+            # Now add the print job data to our data structure
+            if print_job_data:
+                _LOGGER.debug("Merging print job data into self._data")
+                for key, value in print_job_data.items():
+                    _LOGGER.debug("Adding print job field: %s = %s", key, value)
+                    self._data[key] = value
+            else:
                 # Ensure essential print job fields are present even if no job is active
                 _LOGGER.debug("Setting default print job fields")
                 self._data.setdefault("state", "idle")
                 self._data.setdefault("progress", 0)
+
+            # Log the final data structure for debugging
+            _LOGGER.debug("Final data structure before returning: %s", self._data)
+
+            # Log key fields for easier debugging
+            _LOGGER.info("Final printer status: %s", self._data.get("status", "unknown"))
+            if "state" in self._data:
+                _LOGGER.info("Final print job state: %s", self._data.get("state", "unknown"))
+            if "progress" in self._data:
+                _LOGGER.info("Final print job progress: %.1f%%", self._data.get("progress", 0) * 100)
+
+            # Ensure all required fields are present for sensors
+            # This is critical for sensor availability
+            _LOGGER.debug("Ensuring all required fields are present for sensors")
+
+            # Ensure bed data is properly structured
+            if "bed" not in self._data:
+                _LOGGER.debug("Adding empty bed data structure")
+                self._data["bed"] = {}
+
+            if "temperature" not in self._data["bed"]:
+                _LOGGER.debug("Adding empty bed temperature data structure")
+                self._data["bed"]["temperature"] = {}
+
+            if "current" not in self._data["bed"]["temperature"]:
+                _LOGGER.debug("Adding default bed current temperature: 0")
+                self._data["bed"]["temperature"]["current"] = 0
+
+            if "target" not in self._data["bed"]["temperature"]:
+                _LOGGER.debug("Adding default bed target temperature: 0")
+                self._data["bed"]["temperature"]["target"] = 0
+
+            if "type" not in self._data["bed"]:
+                _LOGGER.debug("Adding default bed type: unknown")
+                self._data["bed"]["type"] = "unknown"
+
+            # Ensure heads data is properly structured
+            if "heads" not in self._data or not self._data["heads"]:
+                _LOGGER.debug("Adding empty heads data structure")
+                self._data["heads"] = [{}]
+
+            # Ensure first head has required fields
+            head = self._data["heads"][0]
+
+            if "extruders" not in head or not head["extruders"]:
+                _LOGGER.debug("Adding empty extruders data structure to first head")
+                head["extruders"] = [{}]
+
+            # Ensure first extruder has required fields
+            extruder = head["extruders"][0]
+
+            if "hotend" not in extruder:
+                _LOGGER.debug("Adding empty hotend data structure to first extruder")
+                extruder["hotend"] = {}
+
+            hotend = extruder["hotend"]
+
+            if "temperature" not in hotend:
+                _LOGGER.debug("Adding empty temperature data structure to first hotend")
+                hotend["temperature"] = {}
+
+            if "current" not in hotend["temperature"]:
+                _LOGGER.debug("Adding default hotend current temperature: 0")
+                hotend["temperature"]["current"] = 0
+
+            if "target" not in hotend["temperature"]:
+                _LOGGER.debug("Adding default hotend target temperature: 0")
+                hotend["temperature"]["target"] = 0
+
+            if "id" not in hotend:
+                _LOGGER.debug("Adding default hotend ID: unknown")
+                hotend["id"] = "unknown"
+
+            if "active_material" not in extruder:
+                _LOGGER.debug("Adding empty active_material data structure to first extruder")
+                extruder["active_material"] = {}
+
+            if "length_remaining" not in extruder["active_material"]:
+                _LOGGER.debug("Adding default material length remaining: 0")
+                extruder["active_material"]["length_remaining"] = 0
+
+            # If there's a second extruder, ensure it has the required fields
+            if len(head["extruders"]) > 1:
+                _LOGGER.debug("Second extruder found, ensuring it has required fields")
+                extruder2 = head["extruders"][1]
+
+                if "hotend" not in extruder2:
+                    _LOGGER.debug("Adding empty hotend data structure to second extruder")
+                    extruder2["hotend"] = {}
+
+                hotend2 = extruder2["hotend"]
+
+                if "temperature" not in hotend2:
+                    _LOGGER.debug("Adding empty temperature data structure to second hotend")
+                    hotend2["temperature"] = {}
+
+                if "current" not in hotend2["temperature"]:
+                    _LOGGER.debug("Adding default second hotend current temperature: 0")
+                    hotend2["temperature"]["current"] = 0
+
+                if "target" not in hotend2["temperature"]:
+                    _LOGGER.debug("Adding default second hotend target temperature: 0")
+                    hotend2["temperature"]["target"] = 0
+
+                if "id" not in hotend2:
+                    _LOGGER.debug("Adding default second hotend ID: unknown")
+                    hotend2["id"] = "unknown"
+
+            _LOGGER.info("Data structure prepared for sensors, all required fields are present")
 
             # Log the structured data for debugging
             _LOGGER.debug("Final structured data: %s", self._data)
@@ -134,6 +271,10 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
         self._data["sampleTime"] = current_time
         _LOGGER.debug("Added sample time to data: %s", current_time)
         _LOGGER.info("Update cycle completed for Ultimaker printer at %s", self._host)
+
+        # Return the data for the coordinator
+        _LOGGER.debug("Returning data to coordinator: %s", self._data)
+        return self._data
 
     async def _fetch_data(self, url: str) -> Dict[str, Any]:
         """Fetch data from the API."""
@@ -249,7 +390,7 @@ class UltimakerCloudApiClient(UltimakerApiClientBase):
         _LOGGER.info("UltimakerCloudApiClient initialized successfully")
 
     @Throttle(timedelta(seconds=DEFAULT_SCAN_INTERVAL_CLOUD))
-    async def async_update(self) -> None:
+    async def async_update(self) -> Dict[str, Any]:
         """Update data from the API."""
         _LOGGER.info("Starting update cycle for Ultimaker Cloud API")
 
@@ -369,6 +510,10 @@ class UltimakerCloudApiClient(UltimakerApiClientBase):
         self._data["sampleTime"] = current_time
         _LOGGER.debug("Added sample time to data: %s", current_time)
         _LOGGER.info("Update cycle completed for Ultimaker Cloud API")
+
+        # Return the data for the coordinator
+        _LOGGER.debug("Returning data to coordinator: %s", self._data)
+        return self._data
 
     async def _api_request(
         self,
