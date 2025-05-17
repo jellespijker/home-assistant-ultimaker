@@ -240,14 +240,21 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
         self.entity_description = description
         self._entry_id = entry_id
         self._decimal = decimal
-        self._attr_unique_id = f"{entry_id}_{description.key}"
+
+        # Extract device name from coordinator name
+        device_name = coordinator.name
+        if "(" in device_name and ")" in device_name:
+            device_name = device_name.split("(")[1].split(")")[0]
+
+        # Create unique ID using device name and sensor key
+        self._attr_unique_id = f"{entry_id}_{device_name}_{description.key}"
         _LOGGER.debug("Sensor unique_id: %s", self._attr_unique_id)
 
         # Set up device info
         _LOGGER.debug("Setting up device info for sensor %s", description.name)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
-            name="Ultimaker Printer",
+            name=f"Ultimaker Printer ({device_name})",
             manufacturer="Ultimaker",
             model="Ultimaker Printer",
         )
@@ -262,6 +269,7 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
 
         _LOGGER.debug("Checking availability for sensor: %s (key: %s)", sensor_name, sensor_key)
 
+        # Check if coordinator update was successful
         if not self.coordinator.last_update_success:
             _LOGGER.debug("Sensor %s unavailable: coordinator update failed", sensor_name)
             return False
@@ -277,253 +285,27 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
             _LOGGER.debug("Sensor %s unavailable: no data from coordinator", sensor_name)
             return False
 
+        # Check if printer is connected
         status = data.get("status")
         if status in ["not connected", "timeout", "error"]:
             _LOGGER.debug("Sensor %s unavailable: printer status is '%s'", sensor_name, status)
             return False
 
-        # Check if the required data for each sensor type is present
-        key = self.entity_description.key
-        _LOGGER.debug("Checking if required data for sensor %s (key: %s) is present", sensor_name, key)
-
-        if key == SENSOR_STATE:
-            has_state = "state" in data
-            if not has_state:
-                _LOGGER.debug("Sensor %s unavailable: 'state' field missing in data", sensor_name)
-            return has_state
-
-        elif key == SENSOR_PROGRESS:
-            has_progress = "progress" in data
-            if not has_progress:
-                _LOGGER.debug("Sensor %s unavailable: 'progress' field missing in data", sensor_name)
-            return has_progress
-
-        elif key == SENSOR_BED_TEMPERATURE:
-            bed = data.get("bed", {})
-            if not bed:
-                _LOGGER.debug("Sensor %s unavailable: 'bed' field missing in data", sensor_name)
-                return False
-
-            temperature = bed.get("temperature", {})
-            if not temperature:
-                _LOGGER.debug("Sensor %s unavailable: 'temperature' field missing in bed data", sensor_name)
-                return False
-
-            has_current = "current" in temperature
-            if not has_current:
-                _LOGGER.debug("Sensor %s unavailable: 'current' field missing in bed temperature data", sensor_name)
-            return has_current
-
-        elif key == SENSOR_BED_TEMPERATURE_TARGET:
-            bed = data.get("bed", {})
-            if not bed:
-                _LOGGER.debug("Sensor %s unavailable: 'bed' field missing in data", sensor_name)
-                return False
-
-            temperature = bed.get("temperature", {})
-            if not temperature:
-                _LOGGER.debug("Sensor %s unavailable: 'temperature' field missing in bed data", sensor_name)
-                return False
-
-            has_target = "target" in temperature
-            if not has_target:
-                _LOGGER.debug("Sensor %s unavailable: 'target' field missing in bed temperature data", sensor_name)
-            return has_target
-
-        elif key == SENSOR_BED_TYPE:
-            bed = data.get("bed", {})
-            if not bed:
-                _LOGGER.debug("Sensor %s unavailable: 'bed' field missing in data", sensor_name)
-                return False
-
-            has_type = "type" in bed
-            if not has_type:
-                _LOGGER.debug("Sensor %s unavailable: 'type' field missing in bed data", sensor_name)
-            return has_type
-
-        elif key == SENSOR_HOTEND_1_TEMPERATURE:
+        # For hotend 2 sensors, check if the printer has a second extruder
+        if sensor_key in [SENSOR_HOTEND_2_TEMPERATURE, SENSOR_HOTEND_2_TEMPERATURE_TARGET, SENSOR_HOTEND_2_ID]:
             heads = data.get("heads", [{}])
             if not heads or len(heads) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'heads' field missing or empty in data", sensor_name)
                 return False
 
             head = heads[0]
-            extruders = head.get("extruders", [{}])
-            if not extruders or len(extruders) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'extruders' field missing or empty in head data", sensor_name)
-                return False
-
-            extruder = extruders[0]
-            hot_end = extruder.get("hotend", {})
-            if not hot_end:
-                _LOGGER.debug("Sensor %s unavailable: 'hotend' field missing in extruder data", sensor_name)
-                return False
-
-            temperature = hot_end.get("temperature", {})
-            if not temperature:
-                _LOGGER.debug("Sensor %s unavailable: 'temperature' field missing in hotend data", sensor_name)
-                return False
-
-            has_current = "current" in temperature
-            if not has_current:
-                _LOGGER.debug("Sensor %s unavailable: 'current' field missing in hotend temperature data", sensor_name)
-            return has_current
-
-        elif key == SENSOR_HOTEND_1_TEMPERATURE_TARGET:
-            heads = data.get("heads", [{}])
-            if not heads or len(heads) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'heads' field missing or empty in data", sensor_name)
-                return False
-
-            head = heads[0]
-            extruders = head.get("extruders", [{}])
-            if not extruders or len(extruders) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'extruders' field missing or empty in head data", sensor_name)
-                return False
-
-            extruder = extruders[0]
-            hot_end = extruder.get("hotend", {})
-            if not hot_end:
-                _LOGGER.debug("Sensor %s unavailable: 'hotend' field missing in extruder data", sensor_name)
-                return False
-
-            temperature = hot_end.get("temperature", {})
-            if not temperature:
-                _LOGGER.debug("Sensor %s unavailable: 'temperature' field missing in hotend data", sensor_name)
-                return False
-
-            has_target = "target" in temperature
-            if not has_target:
-                _LOGGER.debug("Sensor %s unavailable: 'target' field missing in hotend temperature data", sensor_name)
-            return has_target
-
-        elif key == SENSOR_HOTEND_1_ID:
-            heads = data.get("heads", [{}])
-            if not heads or len(heads) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'heads' field missing or empty in data", sensor_name)
-                return False
-
-            head = heads[0]
-            extruders = head.get("extruders", [{}])
-            if not extruders or len(extruders) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'extruders' field missing or empty in head data", sensor_name)
-                return False
-
-            extruder = extruders[0]
-            hot_end = extruder.get("hotend", {})
-            if not hot_end:
-                _LOGGER.debug("Sensor %s unavailable: 'hotend' field missing in extruder data", sensor_name)
-                return False
-
-            has_id = "id" in hot_end
-            if not has_id:
-                _LOGGER.debug("Sensor %s unavailable: 'id' field missing in hotend data", sensor_name)
-            return has_id
-
-        elif key == SENSOR_HOTEND_2_TEMPERATURE:
-            heads = data.get("heads", [{}])
-            if not heads or len(heads) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'heads' field missing or empty in data", sensor_name)
-                return False
-
-            head = heads[0]
-            extruders = head.get("extruders", [{}])
+            extruders = head.get("extruders", [])
             if len(extruders) < 2:
                 _LOGGER.debug("Sensor %s unavailable: printer has fewer than 2 extruders", sensor_name)
                 return False
 
-            extruder = extruders[1]
-            hot_end = extruder.get("hotend", {})
-            if not hot_end:
-                _LOGGER.debug("Sensor %s unavailable: 'hotend' field missing in extruder data", sensor_name)
-                return False
-
-            temperature = hot_end.get("temperature", {})
-            if not temperature:
-                _LOGGER.debug("Sensor %s unavailable: 'temperature' field missing in hotend data", sensor_name)
-                return False
-
-            has_current = "current" in temperature
-            if not has_current:
-                _LOGGER.debug("Sensor %s unavailable: 'current' field missing in hotend temperature data", sensor_name)
-            return has_current
-
-        elif key == SENSOR_HOTEND_2_TEMPERATURE_TARGET:
-            heads = data.get("heads", [{}])
-            if not heads or len(heads) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'heads' field missing or empty in data", sensor_name)
-                return False
-
-            head = heads[0]
-            extruders = head.get("extruders", [{}])
-            if len(extruders) < 2:
-                _LOGGER.debug("Sensor %s unavailable: printer has fewer than 2 extruders", sensor_name)
-                return False
-
-            extruder = extruders[1]
-            hot_end = extruder.get("hotend", {})
-            if not hot_end:
-                _LOGGER.debug("Sensor %s unavailable: 'hotend' field missing in extruder data", sensor_name)
-                return False
-
-            temperature = hot_end.get("temperature", {})
-            if not temperature:
-                _LOGGER.debug("Sensor %s unavailable: 'temperature' field missing in hotend data", sensor_name)
-                return False
-
-            has_target = "target" in temperature
-            if not has_target:
-                _LOGGER.debug("Sensor %s unavailable: 'target' field missing in hotend temperature data", sensor_name)
-            return has_target
-
-        elif key == SENSOR_HOTEND_2_ID:
-            heads = data.get("heads", [{}])
-            if not heads or len(heads) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'heads' field missing or empty in data", sensor_name)
-                return False
-
-            head = heads[0]
-            extruders = head.get("extruders", [{}])
-            if len(extruders) < 2:
-                _LOGGER.debug("Sensor %s unavailable: printer has fewer than 2 extruders", sensor_name)
-                return False
-
-            extruder = extruders[1]
-            hot_end = extruder.get("hotend", {})
-            if not hot_end:
-                _LOGGER.debug("Sensor %s unavailable: 'hotend' field missing in extruder data", sensor_name)
-                return False
-
-            has_id = "id" in hot_end
-            if not has_id:
-                _LOGGER.debug("Sensor %s unavailable: 'id' field missing in hotend data", sensor_name)
-            return has_id
-
-        elif key == SENSOR_MATERIAL_REMAINING:
-            heads = data.get("heads", [{}])
-            if not heads or len(heads) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'heads' field missing or empty in data", sensor_name)
-                return False
-
-            head = heads[0]
-            extruders = head.get("extruders", [{}])
-            if not extruders or len(extruders) == 0:
-                _LOGGER.debug("Sensor %s unavailable: 'extruders' field missing or empty in head data", sensor_name)
-                return False
-
-            extruder = extruders[0]
-            active_material = extruder.get("active_material", {})
-            if not active_material:
-                _LOGGER.debug("Sensor %s unavailable: 'active_material' field missing in extruder data", sensor_name)
-                return False
-
-            has_length = "length_remaining" in active_material
-            if not has_length:
-                _LOGGER.debug("Sensor %s unavailable: 'length_remaining' field missing in active_material data", sensor_name)
-            return has_length
-
-        # For other sensors, assume they're available if we have data
-        _LOGGER.debug("Sensor %s available (default case)", sensor_name)
+        # For all other sensors, assume they're available if the printer is connected
+        # The API client ensures all required fields are present with default values
+        _LOGGER.debug("Sensor %s available (printer is connected)", sensor_name)
         return True
 
     @property
