@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, Optional, cast
 
 from homeassistant.components.application_credentials import (
     ClientCredential,
-    async_get_clientsession,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_entry_oauth2_flow
