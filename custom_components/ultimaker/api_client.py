@@ -58,7 +58,7 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
             raise UpdateFailed("No host configured")
 
         try:
-            # Fetch printer data
+            # Fetch printer data - this contains all the information we need
             _LOGGER.debug("Fetching printer data from %s", self._url_printer)
             printer_data = await self._fetch_data(self._url_printer)
             if not printer_data:
@@ -66,49 +66,26 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                 self._data = {"status": "not connected"}
                 raise UpdateFailed("Failed to fetch printer data")
 
-            # Fetch print job data - this might fail if no print job is active
-            _LOGGER.debug("Fetching print job data from %s", self._url_print_job)
-            try:
-                print_job_data = await self._fetch_data(self._url_print_job)
-            except Exception as err:
-                _LOGGER.warning("Error fetching print job data (this is normal if no print job is active): %s", err)
-                print_job_data = {}
-
-            # Fetch system data
-            _LOGGER.debug("Fetching system data from %s", self._url_system)
-            try:
-                system_data = await self._fetch_data(self._url_system)
-            except Exception as err:
-                _LOGGER.error("Error fetching system data: %s", err)
-                system_data = {}
-
-            # Create a structured data object that matches the expected structure
-            # Start with the printer data as the base
-            self._data = printer_data.copy()
+            # Use the printer data directly
+            self._data = printer_data
 
             # Ensure status is always present
             if "status" not in self._data:
                 self._data["status"] = "idle"
 
-            # Add print job data
-            if print_job_data:
-                # Add all print job data fields
-                for key, value in print_job_data.items():
-                    self._data[key] = value
-            else:
+            # Try to fetch print job data for additional information
+            _LOGGER.debug("Fetching print job data from %s", self._url_print_job)
+            try:
+                print_job_data = await self._fetch_data(self._url_print_job)
+                if print_job_data:
+                    # Add print job data fields
+                    for key, value in print_job_data.items():
+                        self._data[key] = value
+            except Exception as err:
+                _LOGGER.warning("Error fetching print job data (this is normal if no print job is active): %s", err)
                 # Ensure essential print job fields are present even if no job is active
                 self._data.setdefault("state", "idle")
                 self._data.setdefault("progress", 0)
-
-            # Add system data
-            if system_data:
-                # Add system data with prefixed keys to avoid conflicts
-                for key, value in system_data.items():
-                    # Use system_ prefix only for keys that might conflict
-                    if key in self._data:
-                        self._data[f"system_{key}"] = value
-                    else:
-                        self._data[key] = value
 
             # Log the structured data for debugging
             _LOGGER.debug("Structured data: %s", self._data)
