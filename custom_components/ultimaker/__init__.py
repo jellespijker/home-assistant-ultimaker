@@ -1,15 +1,14 @@
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.discovery import load_platform
-
 """Ultimaker printer integration"""
+from homeassistant.core import HomeAssistant
+import homeassistant.helpers.discovery
+
 DOMAIN = "ultimaker"
 
 
 def setup(hass: HomeAssistant, config):
-    """Your controller/hub specific code."""
+    """Set up the Ultimaker integration."""
     # Data that you want to share with your platforms
-    hass.data[DOMAIN] = {"x": 0}
+    hass.data[DOMAIN] = {}
 
-    load_platform("sensor", DOMAIN, {}, config)
-
+    # The sensor platform will be loaded by Home Assistant when explicitly configured
     return True
