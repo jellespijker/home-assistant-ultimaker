@@ -359,6 +359,11 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
             _LOGGER.debug("Sensor %s unavailable: no data from coordinator", sensor_name)
             return False
 
+        # If we're using cached data, consider the sensor available
+        if data.get("using_cached_data", False):
+            _LOGGER.debug("Sensor %s available: using cached data", sensor_name)
+            return True
+
         # Check if printer is connected
         status = data.get("status")
         if status in ["not connected", "timeout", "error"]:
@@ -769,6 +774,11 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
             _LOGGER.debug("Added 'Last Updated' attribute: %s", sample_time)
         else:
             _LOGGER.debug("No sample time available for attributes")
+
+        # Add information about cached data usage
+        if data and data.get("using_cached_data", False):
+            attrs["Using Cached Data"] = True
+            _LOGGER.debug("Added 'Using Cached Data' attribute: True")
 
         _LOGGER.debug("Extra state attributes for %s: %s", sensor_name, attrs)
         return attrs
