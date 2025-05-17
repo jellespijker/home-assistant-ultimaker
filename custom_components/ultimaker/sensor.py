@@ -38,7 +38,6 @@ from homeassistant.const import (
     CONF_SENSORS,
     UnitOfTemperature,
 )
-TEMP_CELSIUS = UnitOfTemperature.CELSIUS
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import HomeAssistantType, StateType
@@ -52,24 +51,24 @@ SENSOR_TYPES = {
     "status": ["Printer status", "", "mdi:printer-3d"],
     "state": ["Print job state", "", "mdi:printer-3d-nozzle"],
     "progress": ["Print job progress", "%", "mdi:progress-clock"],
-    "bed_temperature": ["Bed temperature", TEMP_CELSIUS, "mdi:thermometer"],
+    "bed_temperature": ["Bed temperature", UnitOfTemperature.CELSIUS, "mdi:thermometer"],
     "bed_temperature_target": [
         "Bed temperature target",
-        TEMP_CELSIUS,
+        UnitOfTemperature.CELSIUS,
         "mdi:thermometer",
     ],
     "bed_type": ["Bed type", "", "mdi:layers"],
-    "hotend_1_temperature": ["Hotend 1 temperature", TEMP_CELSIUS, "mdi:thermometer"],
+    "hotend_1_temperature": ["Hotend 1 temperature", UnitOfTemperature.CELSIUS, "mdi:thermometer"],
     "hotend_1_temperature_target": [
         "Hotend 1 temperature target",
-        TEMP_CELSIUS,
+        UnitOfTemperature.CELSIUS,
         "mdi:thermometer",
     ],
     "hotend_1_id": ["Hotend 1 id", "", "mdi:printer-3d-nozzle-outline"],
-    "hotend_2_temperature": ["Hotend 2 temperature", TEMP_CELSIUS, "mdi:thermometer"],
+    "hotend_2_temperature": ["Hotend 2 temperature", UnitOfTemperature.CELSIUS, "mdi:thermometer"],
     "hotend_2_temperature_target": [
         "Hotend 2 temperature target",
-        TEMP_CELSIUS,
+        UnitOfTemperature.CELSIUS,
         "mdi:thermometer",
     ],
     "hotend_2_id": ["Hotend 2 id", "", "mdi:printer-3d-nozzle-outline"],
