@@ -647,7 +647,8 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
                             _LOGGER.debug("Using material name from API for hotend 1: %s", value)
                         else:
                             # Fallback to using the GUID if no name is available
-                            material_guid = active_material.get("GUID", "unknown")
+                            # Try both uppercase and lowercase GUID keys
+                            material_guid = active_material.get("GUID", active_material.get("guid", "unknown"))
                             value = material_guid
                             _LOGGER.debug("No material name available for hotend 1, using GUID: %s", value)
                     else:
@@ -720,7 +721,8 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
                             _LOGGER.debug("Using material name from API for hotend 2: %s", value)
                         else:
                             # Fallback to using the GUID if no name is available
-                            material_guid = active_material.get("GUID", "unknown")
+                            # Try both uppercase and lowercase GUID keys
+                            material_guid = active_material.get("GUID", active_material.get("guid", "unknown"))
                             value = material_guid
                             _LOGGER.debug("No material name available for hotend 2, using GUID: %s", value)
                     else:

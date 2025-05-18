@@ -90,7 +90,7 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
 
             material_xml = await self._fetch_data(material_url)
             if not material_xml or not isinstance(material_xml, str):
-                _LOGGER.warning("Failed to fetch material data for GUID %s", material_guid)
+                _LOGGER.debug("Failed to fetch material data for GUID %s", material_guid)
                 return material_guid
 
             # Parse the XML to extract the material name
@@ -125,7 +125,7 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                     return material_name
 
             except ET.ParseError:
-                _LOGGER.warning("Failed to parse material XML for GUID %s", material_guid)
+                _LOGGER.debug("Failed to parse material XML for GUID %s", material_guid)
 
                 # Try to extract the name using regex as a fallback
                 match = re.search(r"<name>(.*?)</name>", material_xml)
@@ -139,7 +139,7 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                     return material_name
 
             # If all else fails, return the GUID
-            _LOGGER.warning("Could not extract material name from XML for GUID %s", material_guid)
+            _LOGGER.debug("Could not extract material name from XML for GUID %s", material_guid)
             return material_guid
 
         except Exception as err:
@@ -395,7 +395,8 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                     if extruders and len(extruders) > 0:
                         extruder = extruders[0]
                         active_material = extruder.get("active_material", {})
-                        material_guid = active_material.get("GUID", "unknown")
+                        # Try both uppercase and lowercase GUID keys
+                        material_guid = active_material.get("GUID", active_material.get("guid", "unknown"))
 
                         if material_guid and material_guid != "unknown":
                             _LOGGER.debug("Fetching material name for hotend 1 material GUID: %s", material_guid)
@@ -409,7 +410,8 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                     if extruders and len(extruders) > 1:
                         extruder2 = extruders[1]
                         active_material2 = extruder2.get("active_material", {})
-                        material_guid2 = active_material2.get("GUID", "unknown")
+                        # Try both uppercase and lowercase GUID keys
+                        material_guid2 = active_material2.get("GUID", active_material2.get("guid", "unknown"))
 
                         if material_guid2 and material_guid2 != "unknown":
                             _LOGGER.debug("Fetching material name for hotend 2 material GUID: %s", material_guid2)
