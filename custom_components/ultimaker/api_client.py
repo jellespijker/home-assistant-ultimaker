@@ -151,7 +151,11 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
     @Throttle(timedelta(seconds=DEFAULT_SCAN_INTERVAL_LOCAL))
     async def async_update(self) -> Dict[str, Any]:
         """Update data from the API."""
-        _LOGGER.info("Starting update cycle for Ultimaker printer at %s", self._host)
+        # Only log at INFO level if the printer is online, otherwise use DEBUG to reduce log noise
+        if self._is_printer_offline:
+            _LOGGER.debug("Starting update cycle for Ultimaker printer at %s", self._host)
+        else:
+            _LOGGER.info("Starting update cycle for Ultimaker printer at %s", self._host)
 
         if not self._host:
             _LOGGER.error("No host configured for Ultimaker printer")
@@ -463,7 +467,7 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
 
             # Mark the printer as offline
             self._is_printer_offline = True
-            _LOGGER.error("Error fetching Ultimaker (%s) data: Connection error: %s", self._host, err)
+            _LOGGER.debug("Error fetching Ultimaker (%s) data: Connection error: %s", self._host, err)
 
             # If we have previous successful data and haven't exceeded max consecutive errors,
             # use the cached data instead of failing
@@ -491,7 +495,7 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
 
             # Mark the printer as offline
             self._is_printer_offline = True
-            _LOGGER.error("Error fetching Ultimaker (%s) data: Connection timeout", self._host)
+            _LOGGER.debug("Error fetching Ultimaker (%s) data: Connection timeout", self._host)
 
             # If we have previous successful data and haven't exceeded max consecutive errors,
             # use the cached data instead of failing
@@ -513,15 +517,14 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
                 _LOGGER.debug("Setting status to 'timeout' due to timeout error")
                 raise UpdateFailed("Connection timed out")
         except Exception as err:
-            # For unknown errors, we'll keep error level for the main message to help with troubleshooting
-            # but reduce the level of the follow-up messages
-            _LOGGER.error("Unknown error fetching data from Ultimaker printer at %s: %s", self._host, err)
+            # Use debug level for all errors when the printer is offline to reduce log noise
+            _LOGGER.debug("Unknown error fetching data from Ultimaker printer at %s: %s", self._host, err)
             self._consecutive_errors += 1
             _LOGGER.debug("Consecutive errors: %d/%d", self._consecutive_errors, self._max_consecutive_errors)
 
             # Mark the printer as offline
             self._is_printer_offline = True
-            _LOGGER.error("Error fetching Ultimaker (%s) data: Unknown error: %s", self._host, err)
+            _LOGGER.debug("Error fetching Ultimaker (%s) data: Unknown error: %s", self._host, err)
 
             # If we have previous successful data and haven't exceeded max consecutive errors,
             # use the cached data instead of failing
@@ -555,7 +558,11 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
             _LOGGER.info("Resetting consecutive error counter after successful update")
             self._consecutive_errors = 0
 
-        _LOGGER.info("Update cycle completed for Ultimaker printer at %s", self._host)
+        # Only log at INFO level if the printer is online, otherwise use DEBUG to reduce log noise
+        if self._is_printer_offline:
+            _LOGGER.debug("Update cycle completed for Ultimaker printer at %s", self._host)
+        else:
+            _LOGGER.info("Update cycle completed for Ultimaker printer at %s", self._host)
 
         # Return the data for the coordinator
         _LOGGER.debug("Returning data to coordinator: %s", self._data)
@@ -575,7 +582,7 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
 
                 if response.status >= 400:
                     error_text = await response.text()
-                    _LOGGER.error(
+                    _LOGGER.debug(
                         "Error response from Ultimaker printer at %s: HTTP %s - %s",
                         self._host,
                         response.status,
@@ -636,8 +643,8 @@ class UltimakerLocalApiClient(UltimakerApiClientBase):
             _LOGGER.debug("JSON parsing error details: %s", str(err))
             return {}
         except Exception as err:
-            # Keep error level for unknown exceptions to help with troubleshooting
-            _LOGGER.error(
+            # Use debug level for all errors to reduce log noise when printer is offline
+            _LOGGER.debug(
                 "Unknown error occurred while polling Ultimaker printer at %s using url %s: %s",
                 self._host,
                 url,
