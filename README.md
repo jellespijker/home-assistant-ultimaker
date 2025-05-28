@@ -1,89 +1,173 @@
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
-# Home Assistant Ultimaker printers
+# Home Assistant Integration: Ultimaker
 
-![sensors](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/home-assistant-um.png)
+[![hacs\_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 
-Adds support for the following ultimaker printer sensors:
+Custom integration for monitoring **Ultimaker 3**, **S3**, **S5**, and **S7** 3D printers from Home Assistant. Provides detailed real-time data, camera stream, and firmware updates.
 
-- Printer status
-- Print job state
-- Print job progress
-- Hotend id (AA 0.4, BB 0.4, ...)
-- Hotend temperature
-- Hotend target temperature
-- Bed type (glass, ...)
-- Bed temperature
-- Bed target temperature
+---
 
-# Install
+## Features
 
-## Using HACS:
+* 🖨️ Print job status, progress, ETA, and remaining time
+* 🔥 Extruder and bed temperatures
+* 🌡️ Ambient temperature
+* ⚙️ System firmware, hardware info, uptime
+* 📸 Live camera view and snapshots
+* 🔄 Firmware update availability
+* 📊 Sensor data with proper device classes and icons
+* 🧠 Uses DataUpdateCoordinator for efficient polling
+* 📁 Fully supports config flow (UI setup)
 
-Just search for **ultimaker** in the HACS integration bar
+---
 
+## Installation
 
-## From source:
+### Option 1: HACS (Recommended)
 
-Copy the `ultimaker` directory in your own `custom_components` folder
+1. Go to **HACS > Integrations**
+2. Click **+ Explore & Download Repositories**
+3. Search for `Ultimaker` and add it as a custom integration
+4. Restart Home Assistant
+5. Add the integration from **Settings > Devices & Services**
 
+### Option 2: Manual
 
-# Usage
+1. Copy the `ultimaker/` folder to `custom_components/` in your Home Assistant config
+2. Restart Home Assistant
+3. Add the integration from **Settings > Devices & Services**
 
-configuration.yaml
+---
+
+## Configuration
+
+No YAML required.
+
+After installation, go to **Settings > Devices & Services**, click **Add Integration**, and select **Ultimaker**. Enter the printer's IP address and a name.
+![setup](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/setup.png)
+---
+
+## Available Entities
+
+* Ambient Temperature
+* Bed Temperature
+* Bed Target Temperature
+* Extruder 0 Temperature
+* Extruder 0 Target Temperature
+* ETA
+* Firmware Version
+* Hardware Revision
+* Layer Number
+* Material 0 Length Remaining
+* Material 0 Type
+* Model
+* Nozzle Diameter
+* Print Duration
+* Print Duration Elapsed
+* Print Duration Remaining
+* Print Job Name
+* Printer Status
+* Serial Number
+* Total Extrusion
+* Total Hot Time
+* Total Print Time
+* Uptime
+* Variant
+* Camera (Stream & Snapshot)
+* Firmware Update Available
+
+![sensors](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/sensors.png)
+---
+
+## Breaking Changes
+
+This version is a complete rewrite. It is **not compatible** with earlier versions and introduces breaking changes in:
+
+* Entity unique IDs
+* Sensor availability and types
+* Data update logic (now using `DataUpdateCoordinator`)
+* UI configuration only (no YAML)
+
+Please remove and re-add the integration if you’re updating from a previous version.
+
+---
+
+## Lovelace
+
+Add a Lovelace card to the UI:
+
+![sensors](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/lovelace.png)
 
 ```yaml
-sensor:
-  - platform: ultimaker
-    name: name
-    host: ip_adress
-    scan_interval: 10  # optional, default 10
-    decimal: 2  # optional, default 2 rounds the sensor values
-    sensors:
-      - status  # optional
-      - state  # optional
-      - progress  # optional
-      - bed_type  # optional
-      - bed_temperature  # optional
-      - bed_temperature_target  # optional
-      - hotend_1_id  # optional
-      - hotend_1_temperature  # optional
-      - hotend_1_temperature_target  # optional
-      - hotend_2_id  # optional
-      - hotend_2_temperature  # optional
-      - hotend_2_temperature_target  # optional
-```
-
-add a camera to the configuration.yaml
-
-```yaml
-camera:
-  - platform: generic
-    still_image_url: http://ip_adress:8080/?action=snapshot
-    framerate: 4
-```
-
-add a lovelace card to the UI
-
-```typescript
-type: vertical-stack
+type: grid
 cards:
-  - type: entity
-    entity: sensor.printername_print_job_state
-  - type: conditional
-    conditions:
-      - entity: sensor.printername_printer_status
-        state: printing
-    card:
-      type: picture-entity
-      entity: sensor.printername_print_job_progress
-      camera_image: camera.generic_camera
-      camera_view: live
-  - type: gauge
-    entity: sensor.printername_print_job_progress
-    min: 0
-    max: 100
-    severity:
-      green: 66
-      yellow: 33
-      red: 0
+  - type: heading
+    heading: Ultimaker
+    heading_style: title
+  - show_state: true
+    show_name: false
+    camera_view: auto
+    fit_mode: cover
+    type: picture-entity
+    entity: sensor.ums5_print_job_progress
+    camera_image: camera.ums5_camera
+    tap_action:
+      action: more-info
+  - show_name: true
+    show_icon: false
+    show_state: true
+    type: glance
+    entities:
+      - entity: sensor.ums5_time_remaining
+      - entity: sensor.ums5_eta
+    state_color: false
+  - type: tile
+    entity: sensor.ums5_printer_activity
+    features_position: bottom
+    vertical: false
+    name: Estado
+    grid_options:
+      columns: 6
+      rows: 1
+  - type: tile
+    entity: switch.sonoff_10003b7db7
+    features_position: bottom
+    vertical: true
+    icon_tap_action:
+      action: more-info
+  - type: tile
+    entity: sensor.ums5_print_job_name
+    features_position: bottom
+    vertical: false
+    grid_options:
+      columns: 6
+      rows: 1
+    name: Archivo
+  - type: entities
+    entities:
+      - entity: sensor.ums5_bed_temperature
+      - entity: sensor.ums5_bed_temperature_target
+      - entity: sensor.ums5_fan_speed
+      - entity: sensor.ums5_print_job_state
+    grid_options:
+      columns: 6
+      rows: auto
+  - type: entities
+    entities:
+      - entity: sensor.ums5_hotend_1_temperature
+      - entity: sensor.ums5_hotend_1_id
+      - entity: sensor.ums5_hotend_2_temperature
+      - entity: sensor.ums5_hotend_2_id
+    grid_options:
+      columns: 6
+      rows: auto
 ```
+
+## Credits
+
+This integration was inspired by the original work of [jellespijker](https://github.com/jellespijker) and later expanded by [alnavasa](https://github.com/alnavasa).
+
+
+
+## License
+
+MIT License. Not affiliated with Ultimaker BV.
