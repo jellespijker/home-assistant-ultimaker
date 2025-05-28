@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurazione Ultimaker",
+        "description": "Inserisci i dettagli della stampante",
+        "data": {
+          "name": "Nome",
+          "host": "Host",
+          "decimal": "Decimali"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile connettersi"
+    },
+    "abort": {
+      "already_configured": "Questa stampante è già stata configurata"
+    }
+  }
+}

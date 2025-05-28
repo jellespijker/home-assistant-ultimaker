@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuration Ultimaker",
+        "description": "Saisir les détails de l'imprimante",
+        "data": {
+          "name": "Nom",
+          "host": "Hôte",
+          "decimal": "Décimales"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connexion impossible"
+    },
+    "abort": {
+      "already_configured": "Cette imprimante a déjà été configurée"
+    }
+  }
+}

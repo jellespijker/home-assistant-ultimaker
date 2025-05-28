@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ultimaker installatie",
+        "description": "Voer printergegevens in",
+        "data": {
+          "name": "Naam",
+          "host": "Host",
+          "decimal": "Decimalen"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan geen verbinding maken"
+    },
+    "abort": {
+      "already_configured": "Deze printer is al geconfigureerd"
+    }
+  }
+}
