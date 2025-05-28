@@ -43,6 +43,8 @@ Custom integration for monitoring **Ultimaker 3**, **S3**, **S5**, and **S7** 3D
 No YAML required.
 
 After installation, go to **Settings > Devices & Services**, click **Add Integration**, and select **Ultimaker**. Enter the printer's IP address and a name.
+
+
 ![setup](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/setup.png)
 ---
 
