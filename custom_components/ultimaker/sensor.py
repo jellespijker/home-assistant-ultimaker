@@ -1,272 +1,577 @@
-"""Platform for sensor integration.
-
-configuration.yaml
-sensor:
-  - platform: ultimaker
-    name: PRINTER_NAME
-    host: IP_ADDRESS
-    scan_interval: 10 (optional, default 10)
-    decimal: 2 (optional, default = 2)
-    resources:
-      - status (optional)
-      - state (optional)
-      - progress (optional)
-      - bed_temperature (optional)
-      - bed_temperature_target (optional)
-      - bed_type (optional)
-      - hotend_1_temperature (optional)
-      - hotend_1_temperature_target (optional)
-      - hotend_1_temperature_id (optional)
-      - hotend_2_temperature (optional)
-      - hotend_2_temperature_target (optional)
-      - hotend_2_temperature_id (optional)
-"""
-import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
 
-import aiohttp
-import async_timeout
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
-from homeassistant.components.sensor import PLATFORM_SCHEMA
+from datetime import timedelta
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import (
-    CONF_HOST,
-    CONF_NAME,
-    CONF_SCAN_INTERVAL,
-    CONF_SENSORS,
     UnitOfTemperature,
+    UnitOfTime,
+    UnitOfInformation,
+    UnitOfLength,
+    PERCENTAGE,
 )
-TEMP_CELSIUS = UnitOfTemperature.CELSIUS
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.typing import HomeAssistantType, StateType
-from homeassistant.util import Throttle
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
+from homeassistant.helpers.device_registry import DeviceInfo
+import aiohttp
 
-from . import DOMAIN
+from homeassistant.helpers.entity import EntityCategory
+from datetime import datetime, timezone
+
+from .coordinator import UltimakerDataUpdateCoordinator
+
+import subprocess
+import re
+import datetime
+
+def get_mac_from_ip(ip):
+    """Retrieve MAC address for a given IP using ARP table."""
+    try:
+        subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run(["arp", "-n", ip], capture_output=True, text=True)
+        match = re.search(r"(([a-fA-F0-9]{2}[:-]){5}[a-fA-F0-9]{2})", result.stdout)
+        return match.group(0).lower() if match else None
+    except Exception as e:
+        _LOGGER.warning(f"Error getting MAC address for {ip}: {e}")
+        return None
+
+
+
+
+
+
 
 _LOGGER = logging.getLogger(__name__)
+DOMAIN = "ultimaker"
+SCAN_INTERVAL = timedelta(seconds=10)
 
 SENSOR_TYPES = {
-    "status": ["Printer status", "", "mdi:printer-3d"],
-    "state": ["Print job state", "", "mdi:printer-3d-nozzle"],
-    "progress": ["Print job progress", "%", "mdi:progress-clock"],
-    "bed_temperature": ["Bed temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "bed_temperature_target": [
-        "Bed temperature target",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
-    "bed_type": ["Bed type", "", "mdi:layers"],
-    "hotend_1_temperature": ["Hotend 1 temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "hotend_1_temperature_target": [
-        "Hotend 1 temperature target",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
-    "hotend_1_id": ["Hotend 1 id", "", "mdi:printer-3d-nozzle-outline"],
-    "hotend_2_temperature": ["Hotend 2 temperature", TEMP_CELSIUS, "mdi:thermometer"],
-    "hotend_2_temperature_target": [
-        "Hotend 2 temperature target",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
-    "hotend_2_id": ["Hotend 2 id", "", "mdi:printer-3d-nozzle-outline"],
+    "bed_temperature": {
+        "name": "Bed temperature",
+        "unit": UnitOfTemperature.CELSIUS,
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "icon": "mdi:radiator",
+        "path": ["printer", "bed", "temperature", "current"],
+    },
+    "bed_temperature_target": {
+        "name": "Bed temperature target",
+        "unit": UnitOfTemperature.CELSIUS,
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "icon": "mdi:radiator-disabled",
+        "path": ["printer", "bed", "temperature", "target"],
+    },
+    "bed_type": {
+        "name": "Bed type",
+        "unit": None,
+        "icon": "mdi:printer-3d",
+        "path": ["printer", "bed", "type"],
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "hotend_1_temperature": {
+        "name": "Hotend 1 temperature",
+        "unit": UnitOfTemperature.CELSIUS,
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "icon": "mdi:printer-3d-nozzle-heat",
+        "path": ["printer", "heads", 0, "extruders", 0, "hotend", "temperature", "current"],
+    },
+    "hotend_1_temperature_target": {
+        "name": "Hotend 1 temperature target",
+        "unit": UnitOfTemperature.CELSIUS,
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "icon": "mdi:printer-3d-nozzle",
+        "path": ["printer", "heads", 0, "extruders", 0, "hotend", "temperature", "target"],
+    },
+    "hotend_1_id": {
+        "name": "Hotend 1 ID",
+        "icon": "mdi:printer-3d-nozzle",
+        "path": ["printer", "heads", 0, "extruders", 0, "hotend", "id"],
+    },
+    "hotend_2_temperature": {
+        "name": "Hotend 2 temperature",
+        "unit": UnitOfTemperature.CELSIUS,
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "icon": "mdi:printer-3d-nozzle-heat",
+        "path": ["printer", "heads", 0, "extruders", 1, "hotend", "temperature", "current"],
+    },
+    "hotend_2_temperature_target": {
+        "name": "Hotend 2 temperature target",
+        "unit": UnitOfTemperature.CELSIUS,
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "icon": "mdi:printer-3d-nozzle",
+        "path": ["printer", "heads", 0, "extruders", 1, "hotend", "temperature", "target"],
+    },
+    "hotend_2_id": {
+        "name": "Hotend 2 ID",
+        "icon": "mdi:printer-3d-nozzle",
+        "path": ["printer", "heads", 0, "extruders", 1, "hotend", "id"],
+    },
+    "print_job_progress": {
+        "name": "Print job progress",
+        "unit": PERCENTAGE,
+        "device_class": None,
+        "state_class": "measurement",
+        "icon": "mdi:percent",
+        "path": ["print_job", "progress"],
+        "transform": lambda v: round(v * 100, 1),
+    },
+    "print_job_state": {
+        "name": "Print job state",
+        "icon": "mdi:file",
+        "path": ["print_job", "state"],
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "printer_status": {
+        "name": "Printer status",
+        "icon": "mdi:printer-3d",
+        "path": ["printer", "status"],
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "time_elapsed": {
+        "name": "Time elapsed",
+        "unit": UnitOfTime.HOURS,
+        "device_class": "duration",
+        "state_class": "measurement",
+        "icon": "mdi:clock-start",
+        "path": ["print_job", "time_elapsed"],
+        "transform": lambda v: round(v / 3600, 2),
+    },
+    "time_total": {
+        "name": "Time total",
+        "unit": UnitOfTime.HOURS,
+        "device_class": "duration",
+        "state_class": "measurement",
+        "icon": "mdi:clock-outline",
+        "path": ["print_job", "time_total"],
+        "transform": lambda v: round(v / 3600, 2),
+    },
+    "time_remaining": {
+        "name": "Time remaining",
+        "unit": UnitOfTime.HOURS,
+        "device_class": "duration",
+        "state_class": "measurement",
+        "icon": "mdi:clock-end",
+        "transform_from_data": lambda d: round((d.get("print_job", {}).get("time_total", 0) - d.get("print_job", {}).get("time_elapsed", 0)) / 3600, 2),
+    },
+
+    "firmware_version": {
+        "name": "Firmware version",
+        "path": ["system", "firmware"],
+        "icon": "mdi:chip",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+    },
+
+    "firmware_latest": {
+        "name": "Latest firmware version",
+        "path": ["latest_firmware"],
+        "icon": "mdi:cloud-download",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+    },
+
+    "firmware_update_available": {
+        "name": "Firmware update available",
+        "icon": "mdi:update",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "transform_from_data": lambda d: (
+            d.get("system", {}).get("firmware") != d.get("latest_firmware")
+        ),
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+
+    "uptime": {
+        "name": "Uptime",
+        "path": ["system", "uptime"],
+        "unit": UnitOfTime.HOURS,
+        "device_class": "duration",
+        "state_class": "measurement",
+        "transform": lambda v: round(v / 3600, 1),
+        "icon": "mdi:clock-start",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "memory_used": {
+        "name": "Memory used",
+        "unit": UnitOfInformation.MEGABYTES,
+        "device_class": "data_size",
+        "state_class": "measurement",
+        "icon": "mdi:memory",
+        "path": ["system", "memory", "used"],
+        "transform": lambda v: round(v / 1024 / 1024, 1),
+        "entity_category": EntityCategory.DIAGNOSTIC,
+    },
+    "memory_total": {
+        "name": "Memory total",
+        "unit": UnitOfInformation.MEGABYTES,
+        "device_class": "data_size",
+        "state_class": "measurement",
+        "icon": "mdi:memory",
+        "path": ["system", "memory", "total"],
+        "icon": "mdi:memory",
+        "transform": lambda v: round(v / 1024 / 1024, 1),
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "hardware_revision": {
+        "name": "Hardware revision",
+        "path": ["system", "hardware", "revision"],
+        "icon": "mdi:memory",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "model": {
+        "name": "Model",
+        "path": ["system", "variant"],
+        "icon": "mdi:printer-3d",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+    },
+    "fan_speed": {
+        "name": "Fan speed",
+        "path": ["printer", "heads", 0, "fan"],
+        "unit": PERCENTAGE,
+        "state_class": "measurement",
+        "icon": "mdi:fan",
+    },
+    "hotend_1_time_spent_hot": {
+        "name": "Hotend 1 Time Hot",
+        "path": ["printer", "heads", 0, "extruders", 0, "hotend", "statistics", "time_spent_hot"],
+        "unit": UnitOfTime.HOURS,
+        "device_class": "duration",
+        "transform": lambda v: round(v / 3600, 2),
+        "icon": "mdi:fire",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "hotend_1_prints_since_cleaned": {
+        "name": "Hotend 1 Prints Since Cleaned",
+        "path": ["printer", "heads", 0, "extruders", 0, "hotend", "statistics", "prints_since_cleaned"],
+        "icon": "mdi:printer-3d",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "hotend_2_time_spent_hot": {
+        "name": "Hotend 2 Time Hot",
+        "path": ["printer", "heads", 0, "extruders", 1, "hotend", "statistics", "time_spent_hot"],
+        "unit": UnitOfTime.HOURS,
+        "device_class": "duration",
+        "transform": lambda v: round(v / 3600, 2),
+        "icon": "mdi:fire",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "hotend_2_prints_since_cleaned": {
+        "name": "Hotend 2 Prints Since Cleaned",
+        "path": ["printer", "heads", 0, "extruders", 1, "hotend", "statistics", "prints_since_cleaned"],
+        "icon": "mdi:printer-3d",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "print_job_name": {
+        "name": "Print job name",
+        "path": ["print_job", "name"],
+        "icon": "mdi:file-document",
+    },
+    "print_job_source": {
+        "name": "Print job source",
+        "path": ["print_job", "source"],
+        "icon": "mdi:web",
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "print_job_source_app": {
+        "name": "Source application",
+        "path": ["print_job", "source_application"],
+        "icon": "mdi:application",
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+
+
+    "material_extruded": {
+        "name": "Material extruded",
+        "unit": "m",
+        "icon": "mdi:printer-3d-nozzle",
+        "path": ["printer", "heads", 0, "extruders", 0, "hotend", "statistics", "material_extruded"],
+        "state_class": "total_increasing",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "transform": lambda x: round(x / 1000, 3)  
+    },
+    "max_temperature_exposed": {
+        "name": "Hotend max temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "icon": "mdi:thermometer-high",
+        "path": ["printer", "heads", 0, "extruders", 0, "hotend", "statistics", "max_temperature_exposed"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "filament_remaining": {
+        "name": "Filament remaining",
+        "unit": "mm",
+        "icon": "mdi:counter",
+        "path": ["printer", "heads", 0, "extruders", 0, "active_material", "length_remaining"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "led_brightness": {
+        "name": "LED brightness",
+        "unit": "%",
+        "icon": "mdi:led-on",
+        "path": ["printer", "led", "brightness"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "led_hue": {
+        "name": "LED hue",
+        "unit": "°",
+        "icon": "mdi:palette",
+        "path": ["printer", "led", "hue"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "led_saturation": {
+        "name": "LED saturation",
+        "unit": "%",
+        "icon": "mdi:palette",
+        "path": ["printer", "led", "saturation"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "hostname": {
+        "name": "Hostname",
+        "icon": "mdi:server",
+        "path": ["system", "hostname"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "platform": {
+        "name": "Platform",
+        "icon": "mdi:chip",
+        "path": ["system", "platform"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "system_guid": {
+        "name": "System GUID",
+        "icon": "mdi:identifier",
+        "path": ["system", "guid"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "country": {
+        "name": "Country",
+        "icon": "mdi:earth",
+        "path": ["system", "country"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "language": {
+        "name": "Language",
+        "icon": "mdi:translate",
+        "path": ["system", "language"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "system_time": {
+        "name": "System Time",
+        "device_class": "timestamp",
+        "icon": "mdi:clock",
+        "transform": lambda v: datetime.fromtimestamp(v["utc"], tz=timezone.utc),
+        "path": ["system", "time"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "hotend_offset_state": {
+        "name": "Hotend offset state",
+        "icon": "mdi:cursor-pointer",
+        "path": ["printer", "heads", 0, "extruders", 0, "hotend", "offset", "state"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+    },
+    "ethernet_connected": {
+        "name": "Ethernet Connected",
+        "icon": "mdi:lan-connect",
+        "path": ["printer", "network", "ethernet", "connected"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+    },
+    "wifi_connected": {
+        "name": "WiFi Connected",
+        "icon": "mdi:wifi",
+        "path": ["printer", "network", "wifi", "connected"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+    },
+    "wifi_mode": {
+        "name": "WiFi Mode",
+        "icon": "mdi:wifi-settings",
+        "path": ["printer", "network", "wifi", "mode"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+    "wifi_ssid": {
+        "name": "WiFi SSID",
+        "icon": "mdi:wifi",
+        "path": ["printer", "network", "wifi", "ssid"],
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+
+    "camera_stream_url": {
+        "name": "Camera Stream URL",
+        "path": ["camera_stream_url"],
+        "icon": "mdi:video-wireless",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+
+    "camera_snapshot_url": {
+        "name": "Camera Snapshot URL",
+        "path": ["camera_snapshot_url"],
+        "icon": "mdi:camera",
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+},
+
+
+    "ambient_temperature": {
+        "name": "Ambient Temperature",
+        "unit": "°C",
+        "device_class": "temperature",
+        "state_class": "measurement",
+        "icon": "mdi:thermometer",
+        "path": ["ambient_temperature", "current"],
+        "transform": lambda v: round(v / 10, 1),  
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+
+    "printer_activity": {
+        "name": "Printer activity",
+        "icon": "mdi:printer-3d",
+        "transform_from_data": lambda d: (
+            d.get("print_job", {}).get("state")
+            if d.get("print_job", {}).get("state") not in [None, "unknown"]
+            else d.get("printer", {}).get("status", "unknown")
+        ),
+    },
+    "time_elapsed_raw": {
+        "name": "Time elapsed (raw)",
+        "unit": "s",
+        "device_class": "duration",
+        "state_class": "measurement",
+        "icon": "mdi:clock-start",
+        "path": ["print_job", "time_elapsed"],
+    },
+
+    "time_remaining_raw": {
+        "name": "Time remaining (raw)",
+        "unit": "s",
+        "device_class": "duration",
+        "state_class": "measurement",
+        "icon": "mdi:clock-end",
+        "transform_from_data": lambda d: (
+            d.get("print_job", {}).get("time_total", 0) - d.get("print_job", {}).get("time_elapsed", 0)
+        ),
+    },
+    "eta": {
+        "name": "ETA",
+        "device_class": "timestamp",
+        "icon": "mdi:calendar-clock",
+        "transform_from_data": lambda d: (
+            (datetime.datetime.now(datetime.timezone.utc) +
+            datetime.timedelta(seconds=(d["print_job"].get("time_total", 0) - d["print_job"].get("time_elapsed", 0)))
+            ).replace(second=0, microsecond=0)
+            if "print_job" in d and d["print_job"].get("time_total") and d["print_job"].get("time_elapsed") else None
+        ),
+        "entity_registry_enabled_default": False,
+
+    }
 }
 
-CONF_DECIMAL = "decimal"
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_NAME): cv.string,
-        vol.Optional(CONF_DECIMAL, default=2): cv.positive_int,
-        vol.Required(CONF_SENSORS, default=list(SENSOR_TYPES)): vol.All(
-            cv.ensure_list, [vol.In(SENSOR_TYPES)]
-        ),
-    }
-)
 
 
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=10)
-BASE_URL = "http://{0}/api/v1"
-
-
-async def async_setup_platform(
-    hass: HomeAssistantType, config, async_add_entities, discovery_info=None
-):
-    """Setup the Ultimaker printer sensors"""
-    session = async_get_clientsession(hass)
-    data = UltimakerStatusData(session, config.get(CONF_HOST))
-    await data.async_update()
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    ip = config_entry.data["host"]
+    coordinator = UltimakerDataUpdateCoordinator(hass, ip)
+    await coordinator.async_config_entry_first_refresh()
 
     entities = []
-    if CONF_SENSORS in config:
-        for sensor in config[CONF_SENSORS]:
-            sensor_type = sensor.lower()
-            name = f"{config.get(CONF_NAME)} {SENSOR_TYPES[sensor][0]}"
-            unit = SENSOR_TYPES[sensor][1]
-            icon = SENSOR_TYPES[sensor][2]
+    for key, desc in SENSOR_TYPES.items():
+        entities.append(UltimakerSensor(coordinator, config_entry.entry_id, key, desc))
 
-            _LOGGER.debug(
-                f"Adding Ultimaker printer sensor: {name}, {sensor_type}, {unit}, {icon}"
-            )
-            entities.append(
-                UltimakerStatusSensor(
-                    data, name, sensor_type, unit, icon, config.get(CONF_DECIMAL)
-                )
-            )
-
-    async_add_entities(entities, True)
+    async_add_entities(entities)
 
 
-class UltimakerStatusData(object):
-    """Handle Ultimaker object and limit updates"""
+class UltimakerSensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, coordinator, entry_id, key, description):
+        super().__init__(coordinator)
+        self._key = key
+        self._desc = description
+        user_prefix = coordinator.config_entry.data.get("name", "Ultimaker")
+        self._attr_name = f"{user_prefix} {description['name']}"
+        self._attr_unique_id = f"{user_prefix.lower().replace(' ', '_')}_{key}"
+        self._attr_native_unit_of_measurement = description.get("unit")
+        self._attr_device_class = description.get("device_class")
+        self._attr_state_class = description.get("state_class")
+        self._attr_icon = description.get("icon")
+        self._attr_entity_category = description.get("entity_category")
+        self._attr_entity_registry_enabled_default = description.get("entity_registry_enabled_default", True)
+        self._attr_entity_registry_visible_default = description.get("entity_registry_visible_default", True)
+        sys_data = coordinator.data.get("system", {})
+        ip = coordinator.config_entry.data.get("host")
+        mac_address = get_mac_from_ip(ip)
 
-    def __init__(self, session, host):
-        if host:
-            self._url_printer = BASE_URL.format(host) + "/printer"
-            self._url_print_job = BASE_URL.format(host) + "/print_job"
-            self._url_system = BASE_URL.format(host) + "/system"
-        self._host = host
-        self._session = session
-        self._data = None
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            connections={("mac", mac_address)} if mac_address else set(),
+            name=user_prefix,
+            manufacturer="Ultimaker",
+            model=sys_data.get("variant", "Unknown"),
+            sw_version=sys_data.get("firmware", "Unknown"),
+            hw_version=str(sys_data.get("hardware", {}).get("revision", "Unknown")),
+            serial_number=sys_data.get("guid", None),
+        )
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    async def async_update(self):
-        """Download and update data from the Ultimaker Printer"""
-        if self._host:
-            try:
-                printer_data = await self.fetch_data(self._url_printer)
-                print_job_data = await self.fetch_data(self._url_print_job)
-                system_data = await self.fetch_data(self._url_system)
-                self._data = printer_data.copy()
-                self._data.update(print_job_data)
-                self._data.update(system_data)
-            except aiohttp.ClientError:
-                self._data = {"status": "not connected"}
-            self._data["sampleTime"] = datetime.now()
-
-    async def fetch_data(self, url):
+    @property
+    def native_value(self):
+        data = self.coordinator.data
         try:
-            with async_timeout.timeout(5):
-                response = await self._session.get(url)
-        except aiohttp.ClientError as err:
-            _LOGGER.warning(f"Printer {self._host} is offline")
-            raise err
-        except asyncio.TimeoutError:
-            _LOGGER.error(
-                f" Timeout error occurred while polling ultimaker printer using url {url}"
-            )
-        except Exception as err:
-            _LOGGER.error(
-                f"Unknown error occurred while polling Ultimaker printer using {url} -> error: {err}"
-            )
-            return {}
-
-        try:
-            ret = await response.json()
-        except Exception as err:
-            _LOGGER.error(f"Cannot parse data received from Ultimaker printer {err}")
-            return {}
-        return ret
-
-    @property
-    def latest_data(self):
-        return self._data
-
-
-class UltimakerStatusSensor(Entity):
-    """Representation of a Ultimaker status sensor"""
-
-    def __init__(
-        self, data: UltimakerStatusData, name, sensor_type, unit, icon, decimal
-    ):
-        """Initialize the sensor."""
-        self._data = data
-        self._name = name
-        self._type = sensor_type
-        self._unit = unit
-        self._icon = icon
-        self._decimal = decimal
-
-        self._state = None
-        self._last_updated = None
-
-    @property
-    def name(self) -> Optional[str]:
-        return self._name
-
-    @property
-    def icon(self) -> Optional[str]:
-        return self._icon
-
-    @property
-    def state(self) -> StateType:
-        if isinstance(self._state, float):
-            return round(self._state, self._decimal)
-        else:
-            return self._state
-
-    @property
-    def unit_of_measurement(self) -> Optional[str]:
-        return self._unit
-
-    @property
-    def device_state_attributes(self) -> Optional[Dict[str, Any]]:
-        attr = {}
-        if self._last_updated is not None:
-            attr["Last Updated"] = self._last_updated
-        return attr
-
-    async def async_update(self):
-
-        await self._data.async_update()
-        data = self._data.latest_data
-
-        if data:
-            self._last_updated = data.get("sampleTime", None)
-
-            if self._type == "status":
-                self._state = data.get("status", "not connected")
-
-            elif self._type == "state":
-                self._state = data.get("state", None)
-                if self._state:
-                    self._state = self._state.replace("_", " ")
-
-            elif self._type == "progress":
-                self._state = data.get("progress", 0)
-                if self._state:
-                    self._state *= 100
-                self._state = self._state
-
-            elif "bed" in self._type:
-                bed = data.get("bed", None)
-                if "temperature" in self._type and bed:
-                    temperature = bed.get("temperature", None)
-                    if temperature:
-                        if "target" in self._type:
-                            self._state = temperature.get("target", None)
-                        else:
-                            self._state = temperature.get("current", None)
-                if "type" in self._type and bed:
-                    self._state = bed.get("type", None)
-
-            elif "hotend" in self._type:
-                head = data.get("heads", [None])[0]
-                if head:
-                    idx = int(self._type.split("_")[1]) - 1
-                    extruder = head["extruders"][idx]
-                    hot_end = extruder["hotend"]
-                    if "temperature" in self._type and hot_end:
-                        temperature = hot_end["temperature"]
-                        if "target" in self._type:
-                            self._state = temperature.get("target", None)
-                        else:
-                            self._state = temperature.get("current", None)
-                    if "id" in self._type and hot_end:
-                        self._state = hot_end["id"]
-
-            _LOGGER.debug(f"Device: {self._type} State: {self._state}")
+            if "transform_from_data" in self._desc:
+                return self._desc["transform_from_data"](data)
+            for key in self._desc["path"]:
+                data = data[key]
+            if "transform" in self._desc:
+                return self._desc["transform"](data)
+            return data
+        except (KeyError, TypeError):
+            return None

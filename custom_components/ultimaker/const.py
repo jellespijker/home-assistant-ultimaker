@@ -1,0 +1,6 @@
+DOMAIN = "ultimaker"
+
+CONF_DECIMAL = "decimal"
+DEFAULT_DECIMAL = 2
+DEFAULT_SCAN_INTERVAL = 10
+COORDINATOR = "coordinator"
