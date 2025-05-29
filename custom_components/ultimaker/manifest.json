@@ -1,7 +1,7 @@
 {
   "domain": "ultimaker",
   "name": "Ultimaker",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "documentation": "https://github.com/jellespijker/home-assistant-ultimaker",
   "issue_tracker": "https://github.com/jellespijker/home-assistant-ultimaker/issues",
   "dependencies": [],
