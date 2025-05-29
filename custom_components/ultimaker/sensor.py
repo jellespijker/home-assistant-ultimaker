@@ -355,7 +355,7 @@ SENSOR_TYPES = {
     },
     "led_saturation": {
         "name": "LED saturation",
-        "unit": "%",
+        "unit": PERCENTAGE,
         "icon": "mdi:palette",
         "path": ["printer", "led", "saturation"],
         "entity_category": EntityCategory.DIAGNOSTIC,
