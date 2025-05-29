@@ -489,7 +489,7 @@ SENSOR_TYPES = {
     },
     "time_elapsed_raw": {
         "name": "Time elapsed (raw)",
-        "unit": "s",
+        "unit": UnitOfTime.SECOND,
         "device_class": "duration",
         "state_class": "measurement",
         "icon": "mdi:clock-start",
