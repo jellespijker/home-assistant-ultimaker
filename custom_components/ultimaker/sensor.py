@@ -558,7 +558,7 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
             identifiers={(DOMAIN, entry_id)},
             connections={("mac", mac_address)} if mac_address else set(),
             name=user_prefix,
-            manufacturer="Ultimaker",
+            manufacturer="UltiMaker",
             model=sys_data.get("variant", "Unknown"),
             sw_version=sys_data.get("firmware", "Unknown"),
             hw_version=str(sys_data.get("hardware", {}).get("revision", "Unknown")),
