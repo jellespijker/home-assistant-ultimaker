@@ -2,7 +2,7 @@
 
 [![hacs\_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 
-Custom integration for monitoring **Ultimaker 3**, **S3**, **S5**, and **S7** 3D printers from Home Assistant. Provides detailed real-time data, camera stream, and firmware updates.
+Custom integration for monitoring **UltiMaker 3**, **S3**, **S5**, **S7** and **S8** 3D printers from Home Assistant. Provides detailed real-time data, camera stream, and firmware updates.
 
 ---
 
@@ -105,7 +105,7 @@ Example 1
 type: grid
 cards:
   - type: heading
-    heading: Ultimaker
+    heading: UltiMaker
     heading_style: title
   - show_state: true
     show_name: false
@@ -174,7 +174,7 @@ cards:
   - type: heading
     icon: ""
     heading_style: title
-    heading: Ultimaker
+    heading: UltiMaker
   - show_state: false
     show_name: false
     camera_view: auto
