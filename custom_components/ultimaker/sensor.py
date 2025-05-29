@@ -468,7 +468,7 @@ SENSOR_TYPES = {
 
     "ambient_temperature": {
         "name": "Ambient Temperature",
-        "unit": "°C",
+        "unit": UnitOfTemperature.CELSIUS,
         "device_class": "temperature",
         "state_class": "measurement",
         "icon": "mdi:thermometer",
