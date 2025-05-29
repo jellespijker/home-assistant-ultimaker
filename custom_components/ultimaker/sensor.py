@@ -337,7 +337,7 @@ SENSOR_TYPES = {
     },
     "led_brightness": {
         "name": "LED brightness",
-        "unit": "%",
+        "unit": PERCENTAGE,
         "icon": "mdi:led-on",
         "path": ["printer", "led", "brightness"],
         "entity_category": EntityCategory.DIAGNOSTIC,
