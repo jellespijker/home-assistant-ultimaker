@@ -97,6 +97,8 @@ Please remove and re-add the integration if you’re updating from a previous ve
 
 Add a Lovelace card to the UI:
 
+Example 1
+
 ![sensors](https://github.com/jellespijker/home-assistant-ultimaker/raw/main/resources/lovelace.png)
 
 ```yaml
@@ -163,6 +165,54 @@ cards:
       columns: 6
       rows: auto
 ```
+
+Example 2
+
+```yaml
+type: grid
+cards:
+  - type: heading
+    icon: ""
+    heading_style: title
+    heading: Ultimaker
+  - show_state: false
+    show_name: false
+    camera_view: auto
+    fit_mode: cover
+    type: picture-entity
+    entity: sensor.ums5_print_job_progress
+    camera_image: camera.ums5_camera
+    tap_action:
+      action: more-info
+  - type: markdown
+    content: >
+      **Hora finalización:**   {{ as_timestamp(states('sensor.ums5_eta')) |
+      timestamp_custom('%H:%M', true) }}
+
+      **Tiempo transcurrido:**   {{ states('sensor.ums5_time_elapsed') }} h
+
+      **Tiempo restante:**   {{ states('sensor.ums5_time_remaining') }} h
+
+      **Archivo actual:**   {{ states('sensor.ums5_print_job_name') }}
+
+      **Estado de la impresora:**   {{ states('sensor.ums5_printer_activity') }}
+      // {{ states('sensor.ums5_print_job_progress') }} %
+
+      **Hotend 1:**   {{ states('sensor.ums5_hotend_1_temperature') }} °C // {{
+      states('sensor.ums5_hotend_1_temperature_target') }} °C // {{
+      states('sensor.ums5_hotend_1_id') }}
+
+      **Hotend 2:**   {{ states('sensor.ums5_hotend_2_temperature') }} °C // {{
+      states('sensor.ums5_hotend_2_temperature_target') }} °C // {{
+      states('sensor.ums5_hotend_2_id') }}
+
+      **Cama caliente:**   {{ states('sensor.ums5_bed_temperature') }} °C
+      (objetivo: {{ states('sensor.ums5_bed_temperature_target') }} °C)  
+
+      **Firmware:**   {{ states('sensor.ums5_firmware_version') }} → Última: {{
+      states('sensor.ums5_latest_firmware_version') }}
+```
+
 
 ## Credits
 
