@@ -498,7 +498,7 @@ SENSOR_TYPES = {
 
     "time_remaining_raw": {
         "name": "Time remaining (raw)",
-        "unit": "s",
+        "unit": UnitOfTime.SECOND,
         "device_class": "duration",
         "state_class": "measurement",
         "icon": "mdi:clock-end",
