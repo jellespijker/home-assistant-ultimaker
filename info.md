@@ -21,7 +21,7 @@ Adds support for Ultimaker printers with the following sensors and features:
 ## Changes compared to your installed version:
 
 {% if version_installed.replace("v", "").replace("V", "").replace(".","") | int < 20 %}
-### 🚨 Breaking Changes (0.2.0)
+### 🚨 Breaking Changes (1.0.0)
 This version introduces a complete refactor of the integration:
 - YAML configuration has been **removed**.
 - Integration now uses **config_flow** and can be configured via the Home Assistant UI.
