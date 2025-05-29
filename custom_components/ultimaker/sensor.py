@@ -317,7 +317,7 @@ SENSOR_TYPES = {
     },
     "max_temperature_exposed": {
         "name": "Hotend max temperature",
-        "unit": "°C",
+        "unit": UnitOfTemperature.CELSIUS,
         "device_class": "temperature",
         "state_class": "measurement",
         "icon": "mdi:thermometer-high",
