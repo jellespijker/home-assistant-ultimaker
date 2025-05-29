@@ -168,6 +168,7 @@ SENSOR_TYPES = {
         "path": ["system", "firmware"],
         "icon": "mdi:chip",
         "entity_category": EntityCategory.DIAGNOSTIC,
+        "transform": str
     },
 
     "firmware_latest": {
@@ -175,6 +176,7 @@ SENSOR_TYPES = {
         "path": ["latest_firmware"],
         "icon": "mdi:cloud-download",
         "entity_category": EntityCategory.DIAGNOSTIC,
+        "transform": str
     },
 
     "firmware_update_available": {
@@ -184,6 +186,7 @@ SENSOR_TYPES = {
         "transform_from_data": lambda d: (
             d.get("system", {}).get("firmware") != d.get("latest_firmware")
         ),
+        "transform": str,
         "entity_registry_enabled_default": False,
         "entity_registry_visible_default": False
     },

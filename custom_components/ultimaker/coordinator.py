@@ -30,7 +30,8 @@ class UltimakerDataUpdateCoordinator(DataUpdateCoordinator):
                 async with session.get(f"http://{self.ip}/api/v1/ambient_temperature") as temp_resp:
                     ambient_temperature = await temp_resp.json()
                 async with session.get(f"http://{self.ip}/api/v1/system/firmware/latest") as latest_fw_resp:
-                    latest_firmware = await latest_fw_resp.text()
+                    latest_firmware_raw = await latest_fw_resp.text()
+                    latest_firmware = latest_firmware_raw.strip('"') 
                 camera_stream_url = f"http://{self.ip}/api/v1/camera/0/stream"
                 camera_snapshot_url = f"http://{self.ip}/api/v1/camera/0/snapshot"
 
