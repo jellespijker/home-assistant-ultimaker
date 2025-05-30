@@ -7,7 +7,8 @@
         "data": {
           "name": "Nom",
           "host": "Hôte",
-          "decimal": "Décimales"
+          "decimal": "Décimales",
+          "scan_interval": "Intervalle de scan (secondes)"
         }
       }
     },
