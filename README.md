@@ -214,6 +214,82 @@ cards:
 ```
 
 
+
+
+## Ultimaker Integration Roadmap for Home Assistant
+
+**v1.0 – Current Stable Version**
+- Functional sensors: temperature, progress, time, firmware, etc.
+- Proper device grouping
+- Configuration via `config_flow`
+- Basic webhook support (`camera.snapshot`)
+- Implemented localization with language files `en.json` and `es.json`
+- Metadata defined (`iot_class`, `integration_type`, etc.)
+- Clean `device_class`, `entity_category`, `state_class`
+- Advanced sensors: `print_count`, `hours_on`, `filament_used`
+
+---
+
+**v1.1 – Cleanup, Structure, and Basic Checks**
+
+Improve structure, ensure compliance with HA standards, and add resiliency
+
+- [ ] Complete translations (ensure no hardcoded strings)
+- [ ] Finalize `manifest.json` cleanup (validate all fields)
+- [ ] Add full translation support:
+  - [ ] Implement `strings.json` to define UI labels and errors in the config flow
+  - [ ] Add `translations/en.json` and `translations/es.json` for multilingual support
+  - [ ] Ensure all `translation_key` values in `config_flow.py` are declared in `strings.json`- [ ] Add error handling if the printer is offline/unreachable
+- [ ] Ensure consistent `unique_id` generation
+- [ ] Add `extra_state_attributes` to relevant sensors
+- [ ] Group entities logically by domain or purpose
+- [ ] Ensure full `async_unload_entry` support
+- [ ] Input validation in `config_flow` (e.g., valid IP format)
+- [ ] Add basic schema validation and unit tests
+
+---
+
+**v1.2 – Automatic Discovery and Detection**
+
+Make setup easier and seamless via network discovery
+
+- [ ] Support `zeroconf`/`mdns` auto-discovery
+- [ ] Adjust `config_flow.py` to accept network detections
+- [ ] Detect model (UMS5, S3...) and customize sensors accordingly
+- [ ] Check for active HTTP port during setup
+
+---
+
+**v1.3 – Controls with Authentication**
+
+Enable active interaction with the printer via Home Assistant
+
+- [ ] Implement HTTP Digest authentication (`/auth/request`, `/auth/check`)
+- [ ] Add control buttons:
+  - [ ] Pause print
+  - [ ] Resume print
+  - [ ] Cancel print
+  - [ ] Preheat bed and hotends
+- [ ] Verify authentication with `/auth/verify`
+- [ ] Store `id` and `key` securely in `config_entry.options`
+- [ ] Handle auth errors and retries gracefully
+
+---
+
+**v1.4 – Quality, Testing, and Core Readiness**
+
+Final QA and compatibility for Home Assistant Core
+
+- [ ] Add unit tests with `pytest`, `aiohttp`, mocking printer responses
+- [ ] Include `analytics.json` (opt-in telemetry)
+- [ ] GitHub CI for linting and automated testing
+- [ ] Ensure documentation is complete (`README.md`, usage examples)
+- [ ] Optional: prepare and submit PR to Home Assistant Core
+
+---
+
+
+
 ## Credits
 
 This integration was inspired by the original work of [jellespijker](https://github.com/jellespijker) and later expanded by [alnavasa](https://github.com/alnavasa).
