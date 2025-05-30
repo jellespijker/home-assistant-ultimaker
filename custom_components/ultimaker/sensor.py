@@ -501,13 +501,12 @@ SENSOR_TYPES = {
         "device_class": "timestamp",
         "icon": "mdi:calendar-clock",
         "transform_from_data": lambda d: (
-            (datetime.datetime.now(datetime.timezone.utc) +
-            datetime.timedelta(seconds=(d["print_job"].get("time_total", 0) - d["print_job"].get("time_elapsed", 0)))
+            (datetime.now(timezone.utc) +
+            timedelta(seconds=(d["print_job"].get("time_total", 0) - d["print_job"].get("time_elapsed", 0)))
             ).replace(second=0, microsecond=0)
             if "print_job" in d and d["print_job"].get("time_total") and d["print_job"].get("time_elapsed") else None
         ),
         "entity_registry_enabled_default": False,
-
     },
 
     "ip_address": {
