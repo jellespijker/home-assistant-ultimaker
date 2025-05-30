@@ -1,20 +1,22 @@
 import logging
-from datetime import timedelta
 import aiohttp
+from datetime import timedelta
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
+from .utils import get_mac_from_ip
 
 _LOGGER = logging.getLogger(__name__)
 
 class UltimakerDataUpdateCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, ip):
+    def __init__(self, hass, ip, scan_interval):
         """Inicializa el coordinador."""
         self.ip = ip
         super().__init__(
             hass,
-            _LOGGER,
-            name=f"{DOMAIN} Coordinator",
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+            logger=_LOGGER,
+            name=DOMAIN,
+            update_method=self._async_update_data,
+            update_interval=scan_interval,
         )
 
     async def _async_update_data(self):
@@ -34,7 +36,8 @@ class UltimakerDataUpdateCoordinator(DataUpdateCoordinator):
                     latest_firmware = latest_firmware_raw.strip('"') 
                 camera_stream_url = f"http://{self.ip}/api/v1/camera/0/stream"
                 camera_snapshot_url = f"http://{self.ip}/api/v1/camera/0/snapshot"
-
+                mac_address = get_mac_from_ip(self.ip)
+                
                 return {
                     "printer": printer,
                     "print_job": print_job,
@@ -43,6 +46,7 @@ class UltimakerDataUpdateCoordinator(DataUpdateCoordinator):
                     "latest_firmware": latest_firmware,
                     "camera_stream_url": camera_stream_url,
                     "camera_snapshot_url": camera_snapshot_url,
+                    "mac": mac_address,
                 }
 
         except Exception as err:

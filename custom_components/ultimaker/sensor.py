@@ -1,50 +1,35 @@
 import logging
+import re
+import subprocess
+from datetime import datetime, timedelta, timezone
 
-from datetime import timedelta
-from homeassistant.components.sensor import SensorEntity
+import aiohttp
+
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    UnitOfTemperature,
-    UnitOfTime,
+    PERCENTAGE,
     UnitOfInformation,
     UnitOfLength,
-    PERCENTAGE,
+    UnitOfTemperature,
+    UnitOfTime,
 )
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
-from homeassistant.helpers.device_registry import DeviceInfo
-import aiohttp
 
-from homeassistant.helpers.entity import EntityCategory
-from datetime import datetime, timezone
+from homeassistant.components.sensor import SensorEntity
 
 from .coordinator import UltimakerDataUpdateCoordinator
-
-import subprocess
-import re
-import datetime
-
-def get_mac_from_ip(ip):
-    """Retrieve MAC address for a given IP using ARP table."""
-    try:
-        subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        result = subprocess.run(["arp", "-n", ip], capture_output=True, text=True)
-        match = re.search(r"(([a-fA-F0-9]{2}[:-]){5}[a-fA-F0-9]{2})", result.stdout)
-        return match.group(0).lower() if match else None
-    except Exception as e:
-        _LOGGER.warning(f"Error getting MAC address for {ip}: {e}")
-        return None
-
-
-
-
 
 
 
 _LOGGER = logging.getLogger(__name__)
 DOMAIN = "ultimaker"
-SCAN_INTERVAL = timedelta(seconds=10)
 
 SENSOR_TYPES = {
     "bed_temperature": {
@@ -187,6 +172,7 @@ SENSOR_TYPES = {
             d.get("system", {}).get("firmware") != d.get("latest_firmware")
         ),
         "transform": str,
+        "entity_category": EntityCategory.DIAGNOSTIC,
         "entity_registry_enabled_default": False,
         "entity_registry_visible_default": False
     },
@@ -308,7 +294,7 @@ SENSOR_TYPES = {
 
     "material_extruded": {
         "name": "Material extruded",
-        "unit": "m",
+        "unit": UnitOfLength.METERS,
         "icon": "mdi:printer-3d-nozzle",
         "path": ["printer", "heads", 0, "extruders", 0, "hotend", "statistics", "material_extruded"],
         "state_class": "total_increasing",
@@ -328,7 +314,7 @@ SENSOR_TYPES = {
     },
     "filament_remaining": {
         "name": "Filament remaining",
-        "unit": "mm",
+        "unit": UnitOfLength.MILLIMETERS,
         "icon": "mdi:counter",
         "path": ["printer", "heads", 0, "extruders", 0, "active_material", "length_remaining"],
         "entity_category": EntityCategory.DIAGNOSTIC,
@@ -489,22 +475,26 @@ SENSOR_TYPES = {
     },
     "time_elapsed_raw": {
         "name": "Time elapsed (raw)",
-        "unit": UnitOfTime.SECOND,
+        "unit": UnitOfTime.SECONDS,
         "device_class": "duration",
         "state_class": "measurement",
         "icon": "mdi:clock-start",
         "path": ["print_job", "time_elapsed"],
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
     },
 
     "time_remaining_raw": {
         "name": "Time remaining (raw)",
-        "unit": UnitOfTime.SECOND,
+        "unit": UnitOfTime.SECONDS,
         "device_class": "duration",
         "state_class": "measurement",
         "icon": "mdi:clock-end",
         "transform_from_data": lambda d: (
             d.get("print_job", {}).get("time_total", 0) - d.get("print_job", {}).get("time_elapsed", 0)
         ),
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
     },
     "eta": {
         "name": "ETA",
@@ -518,29 +508,54 @@ SENSOR_TYPES = {
         ),
         "entity_registry_enabled_default": False,
 
+    },
+
+    "ip_address": {
+        "name": "IP address",
+        "icon": "mdi:ip-network",
+        "value_fn": lambda coordinator, config_entry: config_entry.data.get("ip"),
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
+    },
+
+    "mac_address": {
+        "name": "MAC address",
+        "icon": "mdi:lan",
+        "value_fn": lambda coordinator, config_entry: coordinator.data.get("mac"),
+        "entity_category": EntityCategory.DIAGNOSTIC,
+        "entity_registry_enabled_default": False,
+        "entity_registry_visible_default": False
     }
+
 }
 
 
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
+    """Set up Ultimaker sensors from a config entry."""
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    ip = config_entry.data["host"]
-    coordinator = UltimakerDataUpdateCoordinator(hass, ip)
+    ip = config_entry.data["ip"]
+    scan_interval = timedelta(seconds=config_entry.data.get("scan_interval", 10))
+    coordinator = UltimakerDataUpdateCoordinator(hass, ip, scan_interval)
     await coordinator.async_config_entry_first_refresh()
 
     entities = []
     for key, desc in SENSOR_TYPES.items():
-        entities.append(UltimakerSensor(coordinator, config_entry.entry_id, key, desc))
+        entities.append(UltimakerSensor(coordinator, config_entry, key, desc))
 
     async_add_entities(entities)
 
 
 class UltimakerSensor(CoordinatorEntity, SensorEntity):
-    def __init__(self, coordinator, entry_id, key, description):
+    def __init__(self, coordinator, config_entry, key, description):
         super().__init__(coordinator)
         self._key = key
         self._desc = description
+        self._value_fn = description.get("value_fn")
         user_prefix = coordinator.config_entry.data.get("name", "Ultimaker")
+        sys_data = coordinator.data.get("system", {})
+        ip = coordinator.config_entry.data.get("ip")
+        mac = self.coordinator.data.get("mac")
         self._attr_name = f"{user_prefix} {description['name']}"
         self._attr_unique_id = f"{user_prefix.lower().replace(' ', '_')}_{key}"
         self._attr_native_unit_of_measurement = description.get("unit")
@@ -550,15 +565,13 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
         self._attr_entity_category = description.get("entity_category")
         self._attr_entity_registry_enabled_default = description.get("entity_registry_enabled_default", True)
         self._attr_entity_registry_visible_default = description.get("entity_registry_visible_default", True)
-        sys_data = coordinator.data.get("system", {})
-        ip = coordinator.config_entry.data.get("host")
-        mac_address = get_mac_from_ip(ip)
+
 
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry_id)},
-            connections={("mac", mac_address)} if mac_address else set(),
-            name=user_prefix,
-            manufacturer="UltiMaker",
+            identifiers={(DOMAIN, config_entry.entry_id)},
+            connections={(CONNECTION_NETWORK_MAC, mac)} if mac else set(),
+            name=config_entry.data.get("name", "Ultimaker"),
+            manufacturer="Ultimaker",
             model=sys_data.get("variant", "Unknown"),
             sw_version=sys_data.get("firmware", "Unknown"),
             hw_version=str(sys_data.get("hardware", {}).get("revision", "Unknown")),
@@ -567,14 +580,22 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
+        # Si hay una función personalizada de valor, úsala
+        if "value_fn" in self._desc:
+            return self._desc["value_fn"](self.coordinator, self.coordinator.config_entry)
+
+        # Lógica original para sensores basados en path
         data = self.coordinator.data
         try:
             if "transform_from_data" in self._desc:
                 return self._desc["transform_from_data"](data)
+
             for key in self._desc["path"]:
                 data = data[key]
+
             if "transform" in self._desc:
                 return self._desc["transform"](data)
+
             return data
         except (KeyError, TypeError):
             return None

@@ -6,7 +6,7 @@
   "issue_tracker": "https://github.com/jellespijker/home-assistant-ultimaker/issues",
   "dependencies": [],
   "codeowners": ["@jellespijker", "@alnavasa"],
-  "requirements": ["packaging"],
+  "requirements": ["packaging", "getmac"],
   "config_flow": true,
   "iot_class": "local_polling",
   "platforms": ["sensor", "camera", "update"]

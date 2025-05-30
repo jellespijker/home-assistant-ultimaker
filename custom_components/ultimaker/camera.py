@@ -2,26 +2,14 @@ import logging
 import subprocess
 import re
 import aiohttp
+from .const import DOMAIN, COORDINATOR
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.components.camera import Camera, CameraEntityFeature
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, COORDINATOR
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def get_mac_from_ip(ip):
-    """Retrieve MAC address for a given IP using ARP table."""
-    try:
-        subprocess.run(["ping", "-c", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        result = subprocess.run(["arp", "-n", ip], capture_output=True, text=True)
-        match = re.search(r"(([a-fA-F0-9]{2}[:-]){5}[a-fA-F0-9]{2})", result.stdout)
-        return match.group(0).lower() if match else None
-    except Exception as e:
-        _LOGGER.warning(f"Error getting MAC address for {ip}: {e}")
-        return None
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities):
@@ -43,14 +31,14 @@ class UltimakerCamera(Camera):
         self._attr_supported_features = CameraEntityFeature.STREAM
         self._attr_entity_picture = self._coordinator.data.get("camera_snapshot_url")
 
-        ip = config_entry.data["host"]
-        mac_address = get_mac_from_ip(ip)
+        ip = config_entry.data["ip"]
+        mac = coordinator.data.get("mac")
 
         sys_data = self._coordinator.data.get("system", {})
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, config_entry.entry_id)},
-            connections={("mac", mac_address)} if mac_address else set(),
+            connections={(CONNECTION_NETWORK_MAC, mac)} if mac else set(),
             name=config_entry.data.get("name", "Ultimaker"),
             manufacturer="Ultimaker",
             model=sys_data.get("variant", "Unknown"),
