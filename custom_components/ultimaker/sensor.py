@@ -1,10 +1,5 @@
-import logging
-import re
-import subprocess
-from datetime import datetime, timedelta, timezone
 
-import aiohttp
-
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
@@ -17,15 +12,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
-
-from homeassistant.components.sensor import SensorEntity
-
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from datetime import datetime, timedelta, timezone
+import logging
 from .coordinator import UltimakerDataUpdateCoordinator
-
 
 
 _LOGGER = logging.getLogger(__name__)

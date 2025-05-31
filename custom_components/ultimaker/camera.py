@@ -1,12 +1,11 @@
-import logging
-import subprocess
-import re
-import aiohttp
 from .const import DOMAIN, COORDINATOR
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+import logging
+import aiohttp
+
 
 
 _LOGGER = logging.getLogger(__name__)

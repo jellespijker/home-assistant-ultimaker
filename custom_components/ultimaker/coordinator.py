@@ -1,9 +1,8 @@
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 import logging
 import aiohttp
-from datetime import timedelta
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 from .utils import get_mac_from_ip
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 

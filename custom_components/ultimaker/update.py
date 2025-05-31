@@ -1,8 +1,8 @@
-import logging
 from homeassistant.components.update import UpdateEntity, UpdateDeviceClass, UpdateEntityFeature
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+import logging
 from .const import DOMAIN, COORDINATOR
 
 _LOGGER = logging.getLogger(__name__)

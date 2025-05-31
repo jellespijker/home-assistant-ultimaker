@@ -1,6 +1,5 @@
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType
 from .const import DOMAIN, COORDINATOR
 from .coordinator import UltimakerDataUpdateCoordinator
 from datetime import timedelta

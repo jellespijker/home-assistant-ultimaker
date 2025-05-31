@@ -1,12 +1,9 @@
-import logging
-from typing import Any, Dict
-
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
-from homeassistant.helpers.selector import NumberSelector, NumberSelectorMode
 import voluptuous as vol
-
+import logging
+from typing import Any, Dict
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
