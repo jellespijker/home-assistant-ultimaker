@@ -1,15 +1,29 @@
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.discovery import load_platform
+from .const import DOMAIN, COORDINATOR
+from .coordinator import UltimakerDataUpdateCoordinator
+from datetime import timedelta
 
-"""Ultimaker printer integration"""
-DOMAIN = "ultimaker"
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Ultimaker from a config entry."""
+    ip = entry.data["ip"]
+    scan_interval = timedelta(seconds=entry.data.get("scan_interval", 10))
+    coordinator = UltimakerDataUpdateCoordinator(hass, ip, scan_interval)
 
+    await coordinator.async_config_entry_first_refresh()
 
-def setup(hass: HomeAssistant, config):
-    """Your controller/hub specific code."""
-    # Data that you want to share with your platforms
-    hass.data[DOMAIN] = {"x": 0}
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+        COORDINATOR: coordinator,
+        "ip": ip,
+    }
 
-    load_platform("sensor", DOMAIN, {}, config)
-
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "camera", "update"])
     return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload Ultimaker config entry."""
+    unloaded = await hass.config_entries.async_unload_platforms(entry, ["sensor", "camera", "update"])
+    if unloaded:
+        hass.data[DOMAIN].pop(entry.entry_id)
+    return unloaded

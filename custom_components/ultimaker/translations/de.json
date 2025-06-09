@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ultimaker-Einrichtung",
+        "description": "Druckerdetails eingeben",
+        "data": {
+          "name": "Name",
+          "host": "Host",
+          "decimal": "Dezimalstellen",
+          "scan_interval": "Scanintervall (Sekunden)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Keine Verbindung möglich"
+    },
+    "abort": {
+      "already_configured": "Dieser Drucker wurde bereits konfiguriert"
+    }
+  }
+}
