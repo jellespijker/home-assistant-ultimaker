@@ -24,8 +24,7 @@ class UltimakerDataUpdateCoordinator(DataUpdateCoordinator):
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"http://{self.ip}/api/v1/printer") as printer_resp:
                     printer = await printer_resp.json()
-                async with session.get(f"http://{self.ip}/api/v1/print_job") as job_resp:
-                    print_job = await job_resp.json()
+                print_job = await self._async_get_print_job(session)
                 async with session.get(f"http://{self.ip}/api/v1/system") as system_resp:
                     system = await system_resp.json()
                 async with session.get(f"http://{self.ip}/api/v1/ambient_temperature") as temp_resp:
@@ -50,3 +49,18 @@ class UltimakerDataUpdateCoordinator(DataUpdateCoordinator):
 
         except Exception as err:
             raise UpdateFailed(f"Error comunicando con la API de Ultimaker: {err}")
+
+    async def _async_get_print_job(self, session):
+        """Firmware 9 needs auth for /print_job, but not for these fields of it."""
+        async with session.get(f"http://{self.ip}/api/v1/print_job") as job_resp:
+            if job_resp.status != 401:
+                return await job_resp.json()
+        async with session.get(f"http://{self.ip}/api/v1/print_job/state") as state_resp:
+            if state_resp.status != 200:
+                return {}
+            print_job = {"state": await state_resp.json()}
+        for field in ("name", "progress", "time_elapsed", "time_total"):
+            async with session.get(f"http://{self.ip}/api/v1/print_job/{field}") as field_resp:
+                if field_resp.status == 200:
+                    print_job[field] = await field_resp.json()
+        return print_job
