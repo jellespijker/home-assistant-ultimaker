@@ -85,3 +85,31 @@ def cluster(guid: str = "guid-1", **overrides) -> dict:
     }
     data.update(overrides)
     return data
+
+
+@pytest.fixture
+def mock_cloud():
+    """Replace the Digital Factory API; set `.printers` to the cluster JSON the workspace holds."""
+    from custom_components.ultimaker.digital_factory import CloudPrinter, PrinterStatus
+
+    class Cloud:
+        printers = [cluster("guid-1", friendly_name="Workshop S8"), cluster("guid-2", friendly_name="Lab Factor 4")]
+        list_error = None
+
+        async def list_printers(self, *_):
+            if self.list_error:
+                raise self.list_error
+            return [CloudPrinter.from_json(dict(p, organization_id=p.get("organization_id", "org-1"))) for p in self.printers]
+
+        async def get_printer_status(self, *_):
+            return PrinterStatus.from_json(
+                {"is_online": True,
+                 "print_jobs": [{"uuid": "job-1", "name": "bracket", "status": "printing"},
+                                {"uuid": "job-2", "name": "lid", "status": "queued"}],
+                 "recently_completed": [{"uuid": "job-0", "name": "old", "status": "finished"}]}
+            )
+
+    cloud = Cloud()
+    base = "custom_components.ultimaker.digital_factory.client.DigitalFactoryClient"
+    with patch(f"{base}.list_printers", cloud.list_printers), patch(f"{base}.get_printer_status", cloud.get_printer_status):
+        yield cloud

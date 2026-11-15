@@ -2,21 +2,73 @@
   "config": {
     "step": {
       "user": {
+        "title": "Add UltiMaker printers",
+        "menu_options": {
+          "lan": "A printer on the local network",
+          "cloud": "Printers from Digital Factory"
+        }
+      },
+      "lan": {
         "title": "Configuration Ultimaker",
         "description": "Saisir les détails de l'imprimante",
         "data": {
           "name": "Nom",
-          "host": "Hôte",
-          "decimal": "Décimales",
-          "scan_interval": "Intervalle de scan (secondes)"
+          "scan_interval": "Intervalle de scan (secondes)",
+          "ip": "Hôte"
+        }
+      },
+      "cloud": {
+        "title": "Sign in to Digital Factory",
+        "description": "Paste an API token. Create one in Digital Factory under [Settings → API Tokens]({api_token_url}).\n\nAPI tokens need a workspace admin on the Business, Business Plus, Unlimited, Excellence or Campus plan. If the page is missing for you, [upgrade your subscription]({upgrade_url}).",
+        "data": {
+          "api_token": "API token"
+        }
+      },
+      "printers": {
+        "title": "Choose printers to import",
+        "description": "Your workspace has {count} printers. Tick the ones to add to Home Assistant; you can change this later.",
+        "data": {
+          "printers": "Printers"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in to Digital Factory again",
+        "description": "Digital Factory no longer accepts the stored API token. Paste a new one from [Settings → API Tokens]({api_token_url}), created in the same workspace.",
+        "data": {
+          "api_token": "API token"
         }
       }
     },
     "error": {
-      "cannot_connect": "Connexion impossible"
+      "cannot_connect": "Connexion impossible",
+      "invalid_auth": "Digital Factory did not accept this API token",
+      "no_printers": "This workspace has no printers",
+      "incomplete_token": "This is not a complete API token. It starts with \"umapi-\" and ends with \"|\" and a region, for example \"umapi-…|eu\". Copy the whole value."
     },
     "abort": {
-      "already_configured": "Cette imprimante a déjà été configurée"
+      "already_configured": "Cette imprimante a déjà été configurée",
+      "wrong_account": "This API token belongs to a different workspace",
+      "reauth_successful": "Signed in again"
+    }
+  },
+  "options": {
+    "step": {
+      "lan": {
+        "title": "Printer options",
+        "data": {
+          "scan_interval": "Intervalle de scan (secondes)"
+        }
+      },
+      "printers": {
+        "title": "Printers to import",
+        "description": "Your workspace has {count} printers. Tick the ones to add to Home Assistant; you can change this later.",
+        "data": {
+          "printers": "Printers"
+        }
+      }
+    },
+    "abort": {
+      "cannot_connect": "Connexion impossible"
     }
   }
 }

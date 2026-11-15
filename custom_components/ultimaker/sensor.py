@@ -14,7 +14,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from datetime import datetime, timedelta, timezone
 import logging
-from .const import COORDINATOR
+from .cloud_entity import cloud_sensors
+from .const import CONF_CONNECTION, CONNECTION_CLOUD, COORDINATOR
 from .identity import entity_unique_id, printer_device_info
 
 
@@ -522,6 +523,10 @@ SENSOR_TYPES = {
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up Ultimaker sensors from a config entry."""
+
+    if config_entry.data.get(CONF_CONNECTION) == CONNECTION_CLOUD:
+        async_add_entities(cloud_sensors(hass, config_entry))
+        return
 
     coordinator = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
 
