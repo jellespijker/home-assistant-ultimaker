@@ -1,5 +1,5 @@
 from .const import DOMAIN, COORDINATOR
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from .identity import entity_unique_id, printer_device_info
 from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -25,26 +25,12 @@ class UltimakerCamera(Camera):
         super().__init__()
         self._attr_name = name
         self._coordinator = coordinator
-        self._attr_unique_id = f"{config_entry.entry_id}_camera"
+        self._attr_unique_id = entity_unique_id(config_entry, coordinator.data, "camera", "camera")
         self._attr_is_streaming = True
         self._attr_supported_features = CameraEntityFeature.STREAM
         self._attr_entity_picture = self._coordinator.data.get("camera_snapshot_url")
 
-        ip = config_entry.data["ip"]
-        mac = coordinator.data.get("mac")
-
-        sys_data = self._coordinator.data.get("system", {})
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, config_entry.entry_id)},
-            connections={(CONNECTION_NETWORK_MAC, mac)} if mac else set(),
-            name=config_entry.data.get("name", "Ultimaker"),
-            manufacturer="Ultimaker",
-            model=sys_data.get("variant", "Unknown"),
-            sw_version=sys_data.get("firmware", "Unknown"),
-            hw_version=str(sys_data.get("hardware", {}).get("revision", "Unknown")),
-            serial_number=sys_data.get("guid", None),
-        )
+        self._attr_device_info = printer_device_info(config_entry, coordinator.data)
 
     async def stream_source(self):
         """Return the stream source URL (MUST be async method)."""
