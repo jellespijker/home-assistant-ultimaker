@@ -2,21 +2,73 @@
   "config": {
     "step": {
       "user": {
+        "title": "UltiMaker-printers toevoegen",
+        "menu_options": {
+          "lan": "Een printer op het lokale netwerk",
+          "cloud": "Printers uit Digital Factory"
+        }
+      },
+      "lan": {
         "title": "Ultimaker installatie",
         "description": "Voer printergegevens in",
         "data": {
           "name": "Naam",
-          "host": "Host",
-          "decimal": "Decimalen",
-          "scan_interval": "Scaninterval (seconden)"
+          "scan_interval": "Scaninterval (seconden)",
+          "ip": "Host"
+        }
+      },
+      "cloud": {
+        "title": "Aanmelden bij Digital Factory",
+        "description": "Plak een API-token. Maak er een aan in Digital Factory onder [Settings → API Tokens]({api_token_url}).\n\nVoor API-tokens is een workspacebeheerder nodig op het Business-, Business Plus-, Unlimited-, Excellence- of Campus-abonnement. Ontbreekt de pagina bij jou, [upgrade dan je abonnement]({upgrade_url}).",
+        "data": {
+          "api_token": "API-token"
+        }
+      },
+      "printers": {
+        "title": "Kies printers om te importeren",
+        "description": "Je workspace heeft {count} printers. Vink aan welke je aan Home Assistant wilt toevoegen; dit kun je later wijzigen.",
+        "data": {
+          "printers": "Printers"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Opnieuw aanmelden bij Digital Factory",
+        "description": "Digital Factory accepteert het opgeslagen API-token niet meer. Plak een nieuw token uit [Settings → API Tokens]({api_token_url}), aangemaakt in dezelfde workspace.",
+        "data": {
+          "api_token": "API-token"
         }
       }
     },
     "error": {
-      "cannot_connect": "Kan geen verbinding maken"
+      "cannot_connect": "Kan geen verbinding maken",
+      "invalid_auth": "Digital Factory accepteert dit API-token niet",
+      "no_printers": "Deze workspace heeft geen printers",
+      "incomplete_token": "Dit is geen volledig API-token. Het begint met \"umapi-\" en eindigt op \"|\" en een regio, bijvoorbeeld \"umapi-…|eu\". Kopieer de hele waarde."
     },
     "abort": {
-      "already_configured": "Deze printer is al geconfigureerd"
+      "already_configured": "Deze printer is al geconfigureerd",
+      "wrong_account": "Dit API-token hoort bij een andere workspace",
+      "reauth_successful": "Opnieuw aangemeld"
+    }
+  },
+  "options": {
+    "step": {
+      "lan": {
+        "title": "Printeropties",
+        "data": {
+          "scan_interval": "Scaninterval (seconden)"
+        }
+      },
+      "printers": {
+        "title": "Te importeren printers",
+        "description": "Je workspace heeft {count} printers. Vink aan welke je aan Home Assistant wilt toevoegen; dit kun je later wijzigen.",
+        "data": {
+          "printers": "Printers"
+        }
+      }
+    },
+    "abort": {
+      "cannot_connect": "Kan geen verbinding maken"
     }
   }
 }

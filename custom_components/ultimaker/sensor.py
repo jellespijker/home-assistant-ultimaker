@@ -9,13 +9,14 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from datetime import datetime, timedelta, timezone
 import logging
-from .coordinator import UltimakerDataUpdateCoordinator
+from .cloud_entity import cloud_sensors
+from .const import CONF_CONNECTION, CONNECTION_CLOUD, COORDINATOR
+from .identity import entity_unique_id, printer_device_info
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -523,10 +524,11 @@ SENSOR_TYPES = {
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up Ultimaker sensors from a config entry."""
 
-    ip = config_entry.data["ip"]
-    scan_interval = timedelta(seconds=config_entry.data.get("scan_interval", 10))
-    coordinator = UltimakerDataUpdateCoordinator(hass, ip, scan_interval)
-    await coordinator.async_config_entry_first_refresh()
+    if config_entry.data.get(CONF_CONNECTION) == CONNECTION_CLOUD:
+        async_add_entities(cloud_sensors(hass, config_entry))
+        return
+
+    coordinator = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
 
     entities = []
     for key, desc in SENSOR_TYPES.items():
@@ -542,11 +544,8 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
         self._desc = description
         self._value_fn = description.get("value_fn")
         user_prefix = coordinator.config_entry.data.get("name", "Ultimaker")
-        sys_data = coordinator.data.get("system", {})
-        ip = coordinator.config_entry.data.get("ip")
-        mac = self.coordinator.data.get("mac")
         self._attr_name = f"{user_prefix} {description['name']}"
-        self._attr_unique_id = f"{user_prefix.lower().replace(' ', '_')}_{key}"
+        self._attr_unique_id = entity_unique_id(config_entry, coordinator.data, key, "sensor")
         self._attr_native_unit_of_measurement = description.get("unit")
         self._attr_device_class = description.get("device_class")
         self._attr_state_class = description.get("state_class")
@@ -556,16 +555,7 @@ class UltimakerSensor(CoordinatorEntity, SensorEntity):
         self._attr_entity_registry_visible_default = description.get("entity_registry_visible_default", True)
 
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, config_entry.entry_id)},
-            connections={(CONNECTION_NETWORK_MAC, mac)} if mac else set(),
-            name=config_entry.data.get("name", "Ultimaker"),
-            manufacturer="Ultimaker",
-            model=sys_data.get("variant", "Unknown"),
-            sw_version=sys_data.get("firmware", "Unknown"),
-            hw_version=str(sys_data.get("hardware", {}).get("revision", "Unknown")),
-            serial_number=sys_data.get("guid", None),
-        )
+        self._attr_device_info = printer_device_info(config_entry, coordinator.data)
 
     @property
     def native_value(self):
