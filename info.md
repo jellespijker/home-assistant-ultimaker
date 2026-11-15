@@ -16,6 +16,7 @@ Adds support for Ultimaker printers with the following sensors and features:
 - Camera live stream and snapshots
 - Update entity for firmware
 - All entities grouped under a single device
+- **New in 2.0:** UltiMaker Digital Factory support: import printers from your workspace (API token), with print queue, faults, material station and more. A printer reached over LAN and Digital Factory is one merged device.
 
 {% if installed %}
 ## Changes compared to your installed version:
